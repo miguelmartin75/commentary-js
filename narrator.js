@@ -1,5 +1,6 @@
 const RECORDING_TYPE = "video/webm"
 const DELETE_BUTTON_CLASSES = "px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+const FPS = 30; // TODO: use mp4jsbox to get frame rate?
 
 class Recorder {
   setup(stream, newRecordingCb) {
@@ -67,9 +68,9 @@ class Video {
     video.muted = true; // TODO: configure
     video.loop = false;
 
+    // TODO: can we display the first frame?
     video.addEventListener(
       "playing", () => {
-        // console.log("playing");
         this.playing = true;
         this._check_ready();
       },
@@ -78,7 +79,6 @@ class Video {
 
     video.addEventListener(
       "timeupdate", () => {
-        // console.log("tu", this.video.currentTime);
         this.timeupdate = true;
         this._check_ready();
       },
@@ -106,12 +106,6 @@ class Video {
   _check_ready() {
     if (this.playing && this.timeupdate) {
       this.ready = true;
-      if(this.seek_to) {
-        // TODO: seeking does not work
-        // console.log("seek");
-        // this.seek(this.seek_to);
-        // this.seek_to = null;
-      }
     }
   }
 }
@@ -132,19 +126,15 @@ class DrawCtx {
   }
 
   setup(canvas) {
-    // const gl = canvas.getContext("webgl2");
     const gl = canvas.getContext("2d");
     this.canvas = canvas;
-    // Only continue if WebGL is available and working
     if (gl === null) {
-      return "Unable to initialize WebGL. Your browser or machine may not support it.";
+      return "Unable to initialize canvas. Your browser or machine may not support it.";
     }
 
     this.gl = gl;
-    // TODO: move to DrawCtx?
     resize_canvas(this.canvas);
     window.addEventListener("resize", (event) => {
-      console.log("resize");
       resize_canvas(this.canvas);
     });
 
@@ -153,8 +143,6 @@ class DrawCtx {
     this.gl.lineWidth = 5;
     this.gl.lineCap = 'round';
     this.gl.strokeStyle = '#c0392b';
-
-
     return null;
   }
 
@@ -184,59 +172,45 @@ class DrawCtx {
   }
 
   canvas_width() {
-    return this.gl.canvas.clientWidth;
+    return this.canvas.clientWidth;
   }
 
   canvas_height() {
-    return this.gl.canvas.clientHeight;
+    return this.canvas.clientHeight;
   }
 
 
   render_frame(dt) {
-    const all_ready = this.drawable_videos.every((x) => this.videos[x.video_id].video.is_ready());
     const cW = this.canvas_width();
     const cH = this.canvas_height();
 
-    if(all_ready) {
-      for(const d of this.drawable_videos) {
-        const info = this.videos[d.video_id];
-        const tex = info.texture;
-        const vid = info.video;
-        if(vid.is_ready()) {
-          const frame = vid.video
-          let ar = vid.video.videoWidth / vid.video.videoHeight
-          var vW = d.w
-          var vH = d.h
-          let offsetX = 0
-          let offsetY = 0
-          if(vid.video.videoWidth < vid.video.videoHeight) {
-            vH = Math.min(vid.video.videoHeight, cH)
-            vW = vH * ar
-            offsetX = cW / 2 - vW / 2
-          } else {
-            vW = Math.min(vid.video.videoWidth, cW)
-            vH = vW / ar
-          }
-          console.log(cW, cH, offsetX, offsetY, vW, vH)
-          this.gl.drawImage(
-            frame,
-            d.x + offsetX,
-            d.y + offsetY,
-            vW,
-            vH
-          );
-        }
+    for(const d of this.drawable_videos) {
+      const info = this.videos[d.video_id];
+      const vid = info.video;
+      if(vid.is_ready()) {
+        const frame = vid.video
+        let ar = vid.video.videoWidth / vid.video.videoHeight
+        let vW = d.w
+        let vH = d.h
+        let offsetX = 0
+        let offsetY = 0
+        vH = Math.min(vid.video.videoHeight, cH)
+        vW = vH * ar
+        offsetX = cW / 2 - vW / 2
+        console.log(cW, cH, offsetX, offsetY, vW, vH)
+        this.gl.drawImage(
+          frame,
+          d.x + offsetX,
+          d.y + offsetY,
+          vW,
+          vH
+        );
       }
     }
-    for(var path of this.paths) {
+    for(const path of this.paths) {
       this.gl.beginPath();
-      this.gl.lineWidth = 5;
-      this.gl.lineCap = 'round';
-      this.gl.strokeStyle = '#c0392b';
-
       this.gl.moveTo(path.from.x, path.from.y)
       this.gl.lineTo(path.to.x, path.to.y)
-
       this.gl.stroke(); // draw it!
     }
   }
@@ -294,7 +268,7 @@ class Narrator {
   update_timeline() {
       this.playBar.value = this.viewVideo.container.video.currentTime
       this.timeInfo.innerHTML = `${this.viewVideo.container.video.currentTime}`
-      this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * 30)}`
+      this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * FPS)}`
   }
 
   reset_draw_canvas() {
@@ -323,7 +297,6 @@ class Narrator {
       if(!from.x || !from.y) return;
       const to = {x: ctx.pos.x, y: ctx.pos.y}
       const path = {from: from, to: to}
-      console.log("added path", path)
       ctx.draw.add_path(path)
     }
 
@@ -379,19 +352,16 @@ class Narrator {
     {
       ctx.playBar.min = 0
       ctx.playBar.value = 0
+      ctx.playBar.max = this.viewVideo.container.video.duration
       vid.container.video.onloadedmetadata = function() {
-        console.log('video metadata loaded', this.duration);//this refers to myVideo
         ctx.playBar.max = this.duration;
       };
-
-      ctx.playBar.max = this.viewVideo.container.video.duration
       ctx.sliderChanging = false;
       ctx.playBar.addEventListener("mousedown", (event) => {
         ctx.sliderChanging = true;
       });
       ctx.playBar.addEventListener("mouseup", (event) => {
         ctx.sliderChanging = false;
-        // console.log("mouse up", event, ctx.playBar.value, ctx.playBar.max)
         vid.container.video.currentTime = ctx.playBar.value;
         ctx.update_timeline()
       });
