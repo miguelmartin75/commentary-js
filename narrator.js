@@ -70,23 +70,34 @@ class Video {
 
     // TODO: can we display the first frame?
     video.addEventListener(
+      "canplay", () => {
+        console.log("can play")
+      },
+      true
+    );
+    video.addEventListener(
       "playing", () => {
         this.playing = true;
-        this._check_ready();
+        if(!this.ready) {
+          this.ready = true;
+          this.pause();
+          this.video.currentTime = 0;
+        }
+        // this._check_ready();
       },
       true
     );
 
-    video.addEventListener(
-      "timeupdate", () => {
-        this.timeupdate = true;
-        this._check_ready();
-      },
-      true
-    );
+    // TODO: investigate performance using "timeupdate"
+    // video.addEventListener(
+    //   "timeupdate", () => {
+    //   },
+    //   true
+    // );
 
     video.src = url;
-    // video.play();
+
+    video.play(); // init
 
     this.video = video;
   }
@@ -101,12 +112,6 @@ class Video {
 
   is_ready() {
     return this.ready;
-  }
-
-  _check_ready() {
-    if (this.playing && this.timeupdate) {
-      this.ready = true;
-    }
   }
 }
 
@@ -352,7 +357,7 @@ class Narrator {
     {
       ctx.playBar.min = 0
       ctx.playBar.value = 0
-      ctx.playBar.max = this.viewVideo.container.video.duration
+      ctx.playBar.max = undefined
       vid.container.video.onloadedmetadata = function() {
         ctx.playBar.max = this.duration;
       };
@@ -364,6 +369,12 @@ class Narrator {
         ctx.sliderChanging = false;
         vid.container.video.currentTime = ctx.playBar.value;
         ctx.update_timeline()
+      });
+      ctx.playBar.addEventListener("mousemove", (event) => {
+        if(ctx.sliderChanging) {
+          vid.container.video.currentTime = ctx.playBar.value;
+          ctx.update_timeline()
+        }
       });
       ctx.playBar.addEventListener("onchange", (value) => {
         console.log("value change", value)
