@@ -1,70 +1,58 @@
-let t = 0.0;
+const RECORDING_TYPE = "video/webm"
+const DELETE_BUTTON_CLASSES = "px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 
-var vsSource = `#version 300 es
+class Recorder {
+  setup(stream, newRecordingCb) {
+    if(!stream) {
+      return "no stream given"
+    }
+    this.currentBlobs = []
+    this.recordings = []
+    this.currentId = 0
 
-in vec4 a_position;
-in vec2 a_texcoord;
+    if (!MediaRecorder.isTypeSupported(RECORDING_TYPE)) { // <2>
+      console.warn(`${RECORDING_TYPE} is not supported`)
+    }
+    this.mediaRecorder = new MediaRecorder(stream, { // <3>
+      mimeType: RECORDING_TYPE
+    })
 
-uniform mat4 u_matrix;
+    let ctx = this
+    this.newRecordingCb = newRecordingCb 
+    this.mediaRecorder.addEventListener('stop', function() {
+      let localVideo = URL.createObjectURL(new Blob(ctx.currentBlobs, { type: RECORDING_TYPE }))
+      let curr = {url: localVideo, idx: ctx.recordings.length}
+      ctx.recordings.push(curr)
+      ctx.currentBlobs = []
+      console.log(ctx.newRecordingCb)
+      ctx.newRecordingCb(curr)
+      ctx.currentId += 1
+    })
 
-out vec2 v_texcoord;
+    this.mediaRecorder.addEventListener('dataavailable', event => {
+      ctx.currentBlobs.push(event.data)
+    })
+    return null;
+  }
 
-void main() {
-  gl_Position = u_matrix * a_position;
-  v_texcoord = a_texcoord;
+  remove(id){
+    for(var idx in this.recordings) {
+      var x = this.recordings[idx]
+      if(x.id == id) {
+        this.recordings.splice(idx, 1)
+        break
+      }
+    }
+  }
+
+  start() {
+    this.mediaRecorder.start()
+  }
+
+  stop() {
+    this.mediaRecorder.stop()
+  }
 }
-`;
-
-// Fragment shader program
-var fsSource = `#version 300 es
-precision mediump float;
-
-in vec2 v_texcoord;
-
-uniform sampler2D u_texture;
-
-out vec4 outColor;
-
-void main() {
-   outColor = texture(u_texture, v_texcoord);
-}
-`;
-
-// class Recorder {
-//   constructor(startButton) {
-//     const stream = await navigator.mediaDevices.getUserMedia({ // <1>
-//       video: true,
-//       audio: true,
-//     })
-//     this.currentBlobs = []
-// 
-//     if (!MediaRecorder.isTypeSupported('video/webm')) { // <2>
-//       console.warn('video/webm is not supported')
-//     }
-// 
-//     this.mediaRecorder = new MediaRecorder(stream, { // <3>
-//       mimeType: 'video/webm',
-//     })
-// 
-//     this.mediaRecorder.addEventListener('stop', function() {
-//       let localVideo = URL.createObjectURL(new Blob(this.currentBlobs, { type: 'video/webm' }))
-//       this.currentBlobs = []
-//     })
-// 
-//     mediaRecorder.addEventListener('dataavailable', event => {
-//       this.currentBlobs.append(event.data)
-//       // videoRecorded.src = URL.createObjectURL(event.data) // <6>
-//     })
-//   }
-// 
-//   start() {
-//     this.mediaRecorder.start()
-//   }
-// 
-//   stop() {
-//     this.mediaRecorder.stop()
-//   }
-// }
 
 class Video {
   constructor(video, url) {
@@ -111,14 +99,6 @@ class Video {
     this.video.pause();
   }
 
-  set_mute() {
-    // TODO
-  }
-
-  set_volume() {
-    // TODO
-  }
-
   is_ready() {
     return this.ready;
   }
@@ -136,85 +116,24 @@ class Video {
   }
 }
 
+function resize_canvas(canvas) {
+  webglUtils.resizeCanvasToDisplaySize(canvas);
+}
+
 // TODO: rename DrawCtx -> Renderer?
 class DrawCtx {
-  setup_general() {
-    let gl = this.gl;
-
-    // Set clear color to black, fully opaque
-    // gl.clearColor(1.0, 1.0, 1.0, 1.0);
-    gl.clearColor(0.5, 1.0, 1.0, 1.0);
-    // Clear the color buffer with specified clear color
-    gl.clear(this.gl.COLOR_BUFFER_BIT);
-  }
-
-  setup_data() {
-    // https://webgl2fundamentals.org/webgl/lessons/webgl-2d-drawimage.html
-    let gl = this.gl;
-    let program = webglUtils.createProgramFromSources(gl, [vsSource, fsSource]);
-    this.program = program;
-
-    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-    var texcoordAttributeLocation = gl.getAttribLocation(program, "a_texcoord");
-
-    this.matrixLocation = gl.getUniformLocation(program, "u_matrix");
-    this.textureLocation = gl.getUniformLocation(program, "u_texture");
-
-    // Create a vertex array object (attribute state)
-
-    var rect_verts = [
-      0.0, 0.0,
-      0.0, 1.0,
-      1.0, 0.0,
-      1.0, 0.0,
-      0.0, 1.0,
-      1.0, 1.0,
-    ]
-    this.rect_verts = rect_verts;
-
-    this.vao = gl.createVertexArray();
-    gl.bindVertexArray(this.vao);
-
-    gl.enableVertexAttribArray(positionAttributeLocation);
-
-    var positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(rect_verts), gl.STATIC_DRAW);
-
-    var size = 2;          // 2 components per iteration
-    var type = gl.FLOAT;   // the data is 32bit floats
-    var normalize = false; // don't normalize the data
-    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
-    var offset = 0;        // start at the beginning of the buffer
-    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
-
-    var texcoordBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(rect_verts), gl.STATIC_DRAW);
-
-    gl.enableVertexAttribArray(texcoordAttributeLocation);
-    
-    // Tell the attribute how to get data out of texcoordBuffer (ARRAY_BUFFER)
-    var size = 2;          // 3 components per iteration
-    var type = gl.FLOAT;   // the data is 32bit floats
-    var normalize = true;  // convert from 0-255 to 0.0-1.0
-    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next color
-    var offset = 0;        // start at the beginning of the buffer
-    gl.vertexAttribPointer(
-      texcoordAttributeLocation, size, type, normalize, stride, offset);
-  }
-
   constructor() {
     this.videos = [];
     this.textures = [];
     this.drawable_videos = [];
+    this.paths = []
     this.canvas = null;
     // TODO: drawable textures?
   }
 
   setup(canvas) {
     // const gl = canvas.getContext("webgl2");
-    const gl = canvas.getContext("webgl2");
+    const gl = canvas.getContext("2d");
     this.canvas = canvas;
     // Only continue if WebGL is available and working
     if (gl === null) {
@@ -222,8 +141,19 @@ class DrawCtx {
     }
 
     this.gl = gl;
-    this.setup_general();
-    this.setup_data();
+    // TODO: move to DrawCtx?
+    resize_canvas(this.canvas);
+    window.addEventListener("resize", (event) => {
+      console.log("resize");
+      resize_canvas(this.canvas);
+    });
+
+
+    // TODO: configure or dynamic
+    this.gl.lineWidth = 5;
+    this.gl.lineCap = 'round';
+    this.gl.strokeStyle = '#c0392b';
+
 
     return null;
   }
@@ -232,52 +162,21 @@ class DrawCtx {
     this.drawable_videos.push({video_id: video.id, x: x, y: y, w: w, h: h, keep_aspect: keep_aspect});
   }
 
-  clear_drawables() {
-    this.drawable_videos.clear();
+  add_path(path) {
+    this.paths.push(path)
+  }
+
+  clear_paths() {
+    this.paths = []
   }
 
   add_create_video(url) {
-    const gl = this.gl;
-
     // TODO multi video container
-
     const video_id = this.videos.length;
     const video_el = document.createElement("video");
     const video = new Video(video_el, url);
 
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-
-    const level = 0;
-    const internalFormat = gl.RGBA;
-    const width = 1;
-    const height = 1;
-    const border = 0;
-    const srcFormat = gl.RGBA;
-    const srcType = gl.UNSIGNED_BYTE;
-    const pixel = new Uint8Array([0, 0, 255, 255]); // opaque blue
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      level,
-      internalFormat,
-      width,
-      height,
-      border,
-      srcFormat,
-      srcType,
-      pixel
-    );
-
-    // Turn off mips and set wrapping to clamp to edge so it
-    // will work regardless of the dimensions of the video.
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-    this.textures.push(texture);
-    this.videos.push({texture: texture, video: video});
-    
+    this.videos.push({video: video});
     return {
       container: video,
       id: video_id,
@@ -285,43 +184,15 @@ class DrawCtx {
   }
 
   canvas_width() {
-    const dpr = window.devicePixelRatio;
-    return this.gl.canvas.clientWidth * dpr;
+    return this.gl.canvas.clientWidth;
   }
 
   canvas_height() {
-    const dpr = window.devicePixelRatio;
-    return this.gl.canvas.clientHeight * dpr;
-  }
-
-  _draw_textured_quad(tex, x, y, width, height, cW, cH) {
-    const gl = this.gl;
-    gl.useProgram(this.program);
-    gl.bindVertexArray(this.vao);
-    gl.uniform1i(this.textureLocation, 0);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-
-    // this matrix will convert from pixels to clip space
-    // TODO: can we do this in the shader? or cache the mat mul?
-    console.log("canvas_width =", cW, cH);
-    var matrix = m4.orthographic(0, cW, cH, 0, -1, 1);
-    matrix = m4.translate(matrix, x, y, 0);
-    matrix = m4.scale(matrix, width, height, 1);
-    gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
-
-    var offset = 0;
-    // var count = this.rect_verts.length;
-    var count = 6; // TODO: above doesn't work?
-    gl.drawArrays(gl.TRIANGLES, offset, count);
+    return this.gl.canvas.clientHeight;
   }
 
 
   render_frame(dt) {
-    const gl = this.gl;
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    // webglUtils.resizeCanvasToDisplaySize(this.canvas);
-
     const all_ready = this.drawable_videos.every((x) => this.videos[x.video_id].video.is_ready());
     const cW = this.canvas_width();
     const cH = this.canvas_height();
@@ -332,110 +203,292 @@ class DrawCtx {
         const tex = info.texture;
         const vid = info.video;
         if(vid.is_ready()) {
-          const level = 0;
-          const internalFormat = gl.RGBA;
-          const srcFormat = gl.RGBA;
-          const srcType = gl.UNSIGNED_BYTE;
           const frame = vid.video
-          gl.bindTexture(gl.TEXTURE_2D, tex);
-          gl.texImage2D(
-            gl.TEXTURE_2D,
-            level,
-            internalFormat,
-            srcFormat,
-            srcType,
-            frame
-          );
-
-          // draw it
-          if(d.keep_aspect) {
-            let ar = vid.video.videoWidth / vid.video.videoHeight
-            // let vW = Math.min(vid.video.videoWidth, d.w)
-            var vW = d.w
-            var vH = d.h
-            // TODO: check if vH exceeds ch
-            let offsetX = 0
-            let offsetY = 0
-            if(vid.video.videoWidth < vid.video.videoHeight) {
-              vH = Math.min(vid.video.videoHeight, cH)
-              vW = vH * ar
-              // offsetX = cW / 2 + vW / 2
-              offsetX = cW / 2 - vW / 2
-            } else {
-              vW = Math.min(vid.video.videoWidth, cW)
-              vH = vW * ar
-            }
-
-            this._draw_textured_quad(tex, d.x + offsetX, d.y + offsetY, vW, vH, cW, cH);
+          let ar = vid.video.videoWidth / vid.video.videoHeight
+          var vW = d.w
+          var vH = d.h
+          let offsetX = 0
+          let offsetY = 0
+          if(vid.video.videoWidth < vid.video.videoHeight) {
+            vH = Math.min(vid.video.videoHeight, cH)
+            vW = vH * ar
+            offsetX = cW / 2 - vW / 2
           } else {
-            this._draw_textured_quad(tex, d.x, d.y, d.w, d.h, cW, cH);
+            vW = Math.min(vid.video.videoWidth, cW)
+            vH = vW / ar
           }
+          console.log(cW, cH, offsetX, offsetY, vW, vH)
+          this.gl.drawImage(
+            frame,
+            d.x + offsetX,
+            d.y + offsetY,
+            vW,
+            vH
+          );
         }
-        // seek the video forward by dt
-        // const fps = 60; // TODO: get me from mp4
-        // const f_dt = ((1.0/dt) / fps) * dt;
-        //console.log(f_dt);
-        // vid.forward(4 * dt);
       }
     }
-    gl.finish();
+    for(var path of this.paths) {
+      this.gl.beginPath();
+      this.gl.lineWidth = 5;
+      this.gl.lineCap = 'round';
+      this.gl.strokeStyle = '#c0392b';
+
+      this.gl.moveTo(path.from.x, path.from.y)
+      this.gl.lineTo(path.to.x, path.to.y)
+
+      this.gl.stroke(); // draw it!
+    }
   }
 }
 
-// TODO: move above classes
+class Narrator {
+  async setup(canvas) {
+    let err = null 
 
+    // TODO: create a setup screen
+    // TODO https://github.com/samdutton/simpl/blob/gh-pages/getusermedia/sources/js/main.js
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    let micDevice = null
+    let videoDevice = null
+    for (var dev of devices) {
+      if(dev.label.includes("MacBook Pro Microphone")) {
+        micDevice = dev.deviceId
+      } else if(dev.label.includes("FaceTime HD Camera (3A71:F4B5)")) {
+        videoDevice = dev.deviceId
+      }
+    }
 
-main(null);
+    console.log("Setup with", micDevice, videoDevice)
+    const stream = await navigator.mediaDevices.getUserMedia({ // <1>
+      // video: true,
+      // audio: true,
+      video: {deviceId: videoDevice},
+      audio: {deviceId: micDevice},
+    })
 
-function init(ctx, canvas) {
-  // TODO: load from cache?
-  const vid = ctx.add_create_video("large.mp4");
-  ctx.draw_video(vid, 0, 0, null, null, true);
+    this.canvas = canvas;
+    this.draw = new DrawCtx();
+    this.draw.setup(canvas);
+    if(err) {
+      return err;
+    }
 
-  let playBtn = document.getElementById("playBtn")
-  playBtn.addEventListener("click", function() {
-    console.log("play clicked")
-    if(playBtn.innerHTML === "Play") {
-      vid.container.play()
-      playBtn.innerHTML = "Pause"
+    this.recorder = new Recorder()
+    err = this.recorder.setup(stream, this._audioCreated)
+    if(err) {
+      return err
+    }
+    this.audioCreatedCb = null
+  }
+
+  _audioCreated(src) {
+    if(this.audioCreatedCb) {
+      console.log("audio created with callback")
+      this.audioCreatedCb(src)
     } else {
-      vid.container.pause()
-      playBtn.innerHTML = "Play"
+      console.log("audio created without callback")
     }
-  });
-  document.getElementById("nextFrameBtn").addEventListener("click", function() {
-    vid.container.currentTime += 1/30.0
-  });
-  document.getElementById("prevFrameBtn").addEventListener("click", function() {
-    vid.container.currentTime -= 1/30.0
-  });
-
-  function resize_canvas() {
-    const dpr = window.devicePixelRatio;
-    const width  = canvas.clientWidth  * dpr;
-    const height = canvas.clientHeight * dpr;
-   
-    // Check if the canvas is not the same size.
-    const needResize = canvas.width  != width || 
-                       canvas.height != height;
-   
-    if (needResize) {
-      // Make the canvas the same size
-      canvas.width  = width;
-      canvas.height = height;
-    }
-   
-    return needResize;
   }
 
-  resize_canvas();
-  // webglUtils.resizeCanvasToDisplaySize(canvas);
+  update_timeline() {
+      this.playBar.value = this.viewVideo.container.video.currentTime
+      this.timeInfo.innerHTML = `${this.viewVideo.container.video.currentTime}`
+      this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * 30)}`
+  }
 
-  window.addEventListener("resize", (event) => {
-    console.log("resize");
-    //resize_canvas();
-  });
+  reset_draw_canvas() {
+    let ctx = this
+    ctx.pos = {x: undefined, y: undefined}
+    ctx.draw.clear_paths()
+  }
+
+  init_draw_canvas() {
+    // modified from https://stackoverflow.com/a/30684711
+    let ctx = this
+    this.reset_draw_canvas()
+    function set_draw_pos(e) {
+      ctx.pos.x = e.clientX;
+      ctx.pos.y = e.clientY;
+    }
+    function clear_draw_pos(e) {
+      ctx.pos = {x: undefined, y: undefined}
+    }
+    function add_path(e) {
+      // mouse left button must be pressed
+      if (e.buttons !== 1) return;
+
+      const from = {x: ctx.pos.x, y: ctx.pos.y}
+      set_draw_pos(e)
+      if(!from.x || !from.y) return;
+      const to = {x: ctx.pos.x, y: ctx.pos.y}
+      const path = {from: from, to: to}
+      console.log("added path", path)
+      ctx.draw.add_path(path)
+    }
+
+    this.canvas.addEventListener('mousemove', add_path);
+    this.canvas.addEventListener('mouseup', clear_draw_pos);
+    this.canvas.addEventListener('mousedown', set_draw_pos);
+    this.canvas.addEventListener('mouseenter', set_draw_pos);
+  }
+
+  init() {
+    let ctx = this;
+    // TODO: get video dynamically
+    this.viewVideo = ctx.draw.add_create_video("cmu_soccer06_2.mp4");
+    ctx.draw.draw_video(this.viewVideo, 0, 0, null, null, true);
+    ctx.init_draw_canvas()
+
+    ctx.isPlaying = false
+
+    let togglePlay = function() {
+      console.log(ctx.playDisabled)
+      if(ctx.playDisabled) {
+        return;
+      }
+      if(!ctx.isPlaying) {
+        vid.container.play()
+        ctx.isPlaying = true
+        playBtn.innerHTML = "Pause"
+      } else {
+        vid.container.pause()
+        ctx.isPlaying = false
+        playBtn.innerHTML = "Play"
+      }
+    }
+
+    let playBtn = document.getElementById("playBtn")
+    ctx.playDisabled = false
+    playBtn.addEventListener("click", togglePlay)
+
+    let vid = this.viewVideo
+    document.getElementById("nextFrameBtn").addEventListener("click", function() {
+      vid.container.video.currentTime += 1/30.0
+      update_timeline()
+    });
+    document.getElementById("prevFrameBtn").addEventListener("click", function() {
+      vid.container.video.currentTime -= 1/30.0
+      update_timeline()
+    });
+    ctx.playBar = document.getElementById("playBar")
+    ctx.timeInfo = document.getElementById("timeInfo")
+    ctx.frameInfo = document.getElementById("frameInfo")
+    console.log(this.viewVideo.container.video.duration)
+    // simple state machine for slider, ref https://stackoverflow.com/a/61568207
+    {
+      ctx.playBar.min = 0
+      ctx.playBar.value = 0
+      vid.container.video.onloadedmetadata = function() {
+        console.log('video metadata loaded', this.duration);//this refers to myVideo
+        ctx.playBar.max = this.duration;
+      };
+
+      ctx.playBar.max = this.viewVideo.container.video.duration
+      ctx.sliderChanging = false;
+      ctx.playBar.addEventListener("mousedown", (event) => {
+        ctx.sliderChanging = true;
+      });
+      ctx.playBar.addEventListener("mouseup", (event) => {
+        ctx.sliderChanging = false;
+        // console.log("mouse up", event, ctx.playBar.value, ctx.playBar.max)
+        vid.container.video.currentTime = ctx.playBar.value;
+        ctx.update_timeline()
+      });
+      ctx.playBar.addEventListener("onchange", (value) => {
+        console.log("value change", value)
+      })
+    }
+
+    let recordBtn = document.getElementById("recordBtn")
+    let audioList = document.getElementById("audioList")
+    ctx.wasPlaying = false
+    ctx.recordDisabled = false
+    ctx.recordTime = null
+    let isRecording = function() {
+      return recordBtn.innerHTML === "Record"
+    }
+    let createRecordingUiElement = function(x) {
+        // NOTE: actually video
+        // TODO: log the data here including paths
+        let src = x.url
+        let node = document.createElement("li")
+        node.innerHTML = `Time: ${ctx.recordTime} `
+
+        let audioNode = document.createElement("video")
+        audioNode.src = src
+        audioNode.setAttribute("controls", "controls")
+        audioList.appendChild(node);
+
+        let delButton = document.createElement("button")
+        delButton.innerHTML = "Delete"
+        delButton.className = DELETE_BUTTON_CLASSES
+        delButton.addEventListener("click", function(event) {
+          console.log("delete clicked")
+        });
+        node.appendChild(delButton)
+        node.appendChild(audioNode)
+        ctx.recordTime = null
+        ctx.recordDisabled = false
+    }
+    let deleteButton = function(event) {
+      ctx.recorder.remove(idx)
+      for(var x of ctx.recorder.recordings) {
+        createRecordingUiElement(x)
+      }
+    }
+    ctx.recorder.audioCreatedCb = function(src) {
+      createRecordingUiElement(src)
+    }
+    recordBtn.addEventListener("click", function() {
+      if(ctx.recordDisabled) {
+        return;
+      }
+      if(isRecording()) {
+        if(ctx.isPlaying) {
+          togglePlay()
+          ctx.wasPlaying = true
+        }
+
+        ctx.recorder.start()
+        ctx.recordTime = vid.container.video.currentTime
+        recordBtn.innerHTML = "Stop Recording"
+      } else {
+        ctx.recorder.stop()
+        // TODO: set style disabled
+        ctx.recordDisabled = true
+        recordBtn.innerHTML = "Record"
+        ctx.reset_draw_canvas()
+        // TODO: add option?
+        // if(ctx.wasPlaying) {
+        //   togglePlay()
+        //   ctx.wasPlaying = false
+        // }
+      }
+    })
+
+
+  }
+
+  run_draw_loop() {
+    let then = 0;
+    let ctx = this
+    function render(now) {
+      now *= 0.001; // to seconds
+      const dt = now - then;
+      then = now;
+
+      ctx.draw.render_frame(dt);
+      if(!ctx.sliderChanging && ctx.isPlaying) {
+        ctx.update_timeline()
+      }
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  }
 }
+
 
 async function main() {
   const canvas = document.querySelector("#glcanvas");
@@ -443,30 +496,15 @@ async function main() {
     console.log("no canvas provided");
     return;
   }
-
-  let ctx = new DrawCtx();
-  let err = ctx.setup(canvas);
-
+  let ctx = new Narrator();
+  let err = await ctx.setup(canvas);
   if(err) {
-    alert(`Unable to setup DrawCtx for rendering:\n${err}`);
-    return;
+    alert(err)
   }
 
-  init(ctx, canvas);
-  draw_loop_for_canvas(ctx, canvas);
+  ctx.init();
+  ctx.run_draw_loop();
 }
 
-function draw_loop_for_canvas(ctx, canvas) {
-  let then = 0;
-  function render(now) {
-    now *= 0.001; // to seconds
-    const dt = now - then;
-    then = now;
 
-    // console.log(dt);
-    ctx.render_frame(dt);
-    requestAnimationFrame(render);
-  }
-
-  requestAnimationFrame(render);
-}
+await main(null);
