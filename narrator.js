@@ -1,5 +1,5 @@
 const RECORDING_TYPE = "video/webm"
-const DELETE_BUTTON_CLASSES = "px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
 
 class Recorder {
