@@ -287,8 +287,11 @@ class Narrator {
     let ctx = this
     this.reset_draw_canvas()
     function set_draw_pos(e) {
-      ctx.pos.x = e.clientX;
-      ctx.pos.y = e.clientY;
+      const target = e.target;
+      const rect = target.getBoundingClientRect();
+
+      ctx.pos.x = e.clientX - rect.left;
+      ctx.pos.y = e.clientY - rect.top;
     }
     function clear_draw_pos(e) {
       ctx.pos = {x: undefined, y: undefined}
@@ -309,6 +312,9 @@ class Narrator {
     this.canvas.addEventListener('mouseup', clear_draw_pos);
     this.canvas.addEventListener('mousedown', set_draw_pos);
     this.canvas.addEventListener('mouseenter', set_draw_pos);
+    document.getElementById("clearStrokeBtn").addEventListener("click", () => {
+      this.reset_draw_canvas()
+    });
   }
 
   init() {
@@ -341,13 +347,13 @@ class Narrator {
     playBtn.addEventListener("click", togglePlay)
 
     let vid = this.viewVideo
-    document.getElementById("nextFrameBtn").addEventListener("click", function() {
+    document.getElementById("nextFrameBtn").addEventListener("click", () => {
       vid.container.video.currentTime += 1/30.0
-      update_timeline()
+      this.update_timeline()
     });
-    document.getElementById("prevFrameBtn").addEventListener("click", function() {
+    document.getElementById("prevFrameBtn").addEventListener("click", () => {
       vid.container.video.currentTime -= 1/30.0
-      update_timeline()
+      this.update_timeline()
     });
     ctx.playBar = document.getElementById("playBar")
     ctx.timeInfo = document.getElementById("timeInfo")
