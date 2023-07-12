@@ -497,10 +497,13 @@ class Narrator {
         if(this.isPlaying) {
           togglePlay()
           this.wasPlaying = true
+        } else {
+          this.wasPlaying = false
         }
 
         this.recorder.start()
         this.isRecording = true
+        this.playDisabled = true
         this.recordTime = vid.container.video.currentTime
         recordBtn.innerHTML = "Stop Recording"
       } else {
@@ -511,6 +514,7 @@ class Narrator {
         recordBtn.innerHTML = "Record"
         this.reset_draw_canvas()
         // TODO: add option?
+        this.playDisabled = false
         if(this.wasPlaying) {
           togglePlay()
           this.wasPlaying = false
