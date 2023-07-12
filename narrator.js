@@ -74,20 +74,20 @@ class Recorder {
       mimeType: RECORDING_TYPE
     })
 
-    let ctx = this
     this.newRecordingCb = newRecordingCb 
-    this.mediaRecorder.addEventListener('stop', function() {
-      let localVideo = URL.createObjectURL(new Blob(ctx.currentBlobs, { type: RECORDING_TYPE }))
-      let curr = {url: localVideo, idx: ctx.recordings.length}
-      ctx.recordings.push(curr)
-      ctx.currentBlobs = []
-      console.log(ctx.newRecordingCb)
-      ctx.newRecordingCb(curr)
-      ctx.currentId += 1
+    this.mediaRecorder.addEventListener('stop', () => {
+      let blob = new Blob(this.currentBlobs, { type: RECORDING_TYPE })
+      let url = URL.createObjectURL(blob)
+      let curr = {url: url, idx: this.recordings.length, blob: blob}
+      this.recordings.push(curr)
+      this.currentBlobs = []
+      console.log(this.newRecordingCb)
+      this.newRecordingCb(curr)
+      this.currentId += 1
     })
 
     this.mediaRecorder.addEventListener('dataavailable', event => {
-      ctx.currentBlobs.push(event.data)
+      this.currentBlobs.push(event.data)
     })
     return null;
   }
@@ -367,90 +367,88 @@ class Narrator {
   }
 
   init() {
-    let ctx = this;
     // TODO: get video dynamically
-    this.viewVideo = ctx.draw.add_create_video("cmu_soccer06_2.mp4");
-    ctx.draw.draw_video(this.viewVideo, 0, 0, null, null, true);
-    ctx.init_draw_canvas()
+    this.viewVideo = this.draw.add_create_video("cmu_soccer06_2.mp4");
+    this.draw.draw_video(this.viewVideo, 0, 0, null, null, true);
+    this.init_draw_canvas()
 
-    ctx.isPlaying = false
+    this.isPlaying = false
 
-    let togglePlay = function() {
-      console.log(ctx.playDisabled)
-      if(ctx.playDisabled) {
+    let togglePlay = () => {
+      console.log(this.playDisabled)
+      if(this.playDisabled) {
         return;
       }
-      if(!ctx.isPlaying) {
+      if(!this.isPlaying) {
         vid.container.play()
-        ctx.isPlaying = true
+        this.isPlaying = true
         playBtn.innerHTML = "Pause"
       } else {
         vid.container.pause()
-        ctx.isPlaying = false
+        this.isPlaying = false
         playBtn.innerHTML = "Play"
       }
     }
 
     let playBtn = document.getElementById("playBtn")
-    ctx.playDisabled = false
+    this.playDisabled = false
     playBtn.addEventListener("click", togglePlay)
 
     let vid = this.viewVideo
-    // TODO: add to this
-    let nextFrame = () => {
+    this.nextFrame = () => {
       vid.container.video.currentTime += 1/30.0
       this.update_timeline()
     }
-    let prevFrame = () => {
+    this.prevFrame = () => {
       vid.container.video.currentTime -= 1/30.0
       this.update_timeline()
     }
-    document.getElementById("nextFrameBtn").addEventListener("click", nextFrame);
-    document.getElementById("prevFrameBtn").addEventListener("click", prevFrame);
-    ctx.playBar = document.getElementById("playBar")
-    ctx.timeInfo = document.getElementById("timeInfo")
-    ctx.frameInfo = document.getElementById("frameInfo")
+    document.getElementById("nextFrameBtn").addEventListener("click", this.nextFrame);
+    document.getElementById("prevFrameBtn").addEventListener("click", this.prevFrame);
+    this.playBar = document.getElementById("playBar")
+    this.timeInfo = document.getElementById("timeInfo")
+    this.frameInfo = document.getElementById("frameInfo")
     console.log(this.viewVideo.container.video.duration)
     // simple state machine for slider, ref https://stackoverflow.com/a/61568207
     {
-      ctx.playBar.min = 0
-      ctx.playBar.value = 0
-      ctx.playBar.max = undefined
-      vid.container.video.onloadedmetadata = function() {
-        ctx.playBar.max = this.duration;
+      this.playBar.min = 0
+      this.playBar.value = 0
+      this.playBar.max = undefined
+      vid.container.video.onloadedmetadata = () => {
+        this.playBar.max = this.duration;
       };
-      ctx.sliderChanging = false;
-      ctx.playBar.addEventListener("mousedown", (event) => {
-        ctx.sliderChanging = true;
+      this.sliderChanging = false;
+      this.playBar.addEventListener("mousedown", () => {
+        this.sliderChanging = true;
       });
-      ctx.playBar.addEventListener("mouseup", (event) => {
-        ctx.sliderChanging = false;
-        vid.container.video.currentTime = ctx.playBar.value;
-        ctx.update_timeline()
+      this.playBar.addEventListener("mouseup", () => {
+        this.sliderChanging = false;
+        vid.container.video.currentTime = this.playBar.value;
+        this.update_timeline()
       });
-      ctx.playBar.addEventListener("mousemove", (event) => {
-        if(ctx.sliderChanging) {
-          vid.container.video.currentTime = ctx.playBar.value;
-          ctx.update_timeline()
+      this.playBar.addEventListener("mousemove", () => {
+        if(this.sliderChanging) {
+          vid.container.video.currentTime = this.playBar.value;
+          this.update_timeline()
         }
       });
-      ctx.playBar.addEventListener("onchange", (value) => {
+      this.playBar.addEventListener("onchange", (value) => {
         console.log("value change", value)
       })
     }
 
     let recordBtn = document.getElementById("recordBtn")
     let audioList = document.getElementById("audioList")
-    ctx.wasPlaying = false
-    ctx.recordDisabled = false
-    ctx.recordTime = null
-    ctx.isRecording = false
-    let createRecordingUiElement = function(x) {
+    this.wasPlaying = false
+    this.recordDisabled = false
+    this.recordTime = null
+    this.isRecording = false
+    this.createRecordingUiElement = (x) => {
         // NOTE: actually video
         // TODO: log the data here including paths
         let src = x.url
         let node = document.createElement("li")
-        node.innerHTML = `Time: ${ctx.recordTime} `
+        node.innerHTML = `Time: ${this.recordTime} `
 
         let audioNode = document.createElement("video")
         audioNode.src = src
@@ -460,77 +458,87 @@ class Narrator {
         let delButton = document.createElement("button")
         delButton.innerHTML = "Delete"
         delButton.className = DELETE_BUTTON_CLASSES
-        delButton.addEventListener("click", function(event) {
+        delButton.addEventListener("click", (event) => {
           console.log("delete clicked")
         });
         let replayButton = document.createElement("button")
         replayButton.innerHTML = "Replay"
         replayButton.className = REPLAY_ANN_BUTTON_CLASSES
-        replayButton.addEventListener("click", function(event) {
+        replayButton.addEventListener("click", (event) => {
           console.log("replay clicked")
         });
         node.appendChild(delButton)
         node.appendChild(replayButton)
         node.appendChild(audioNode)
-        ctx.recordTime = null
-        ctx.recordDisabled = false
+        this.recordTime = null
+        this.recordDisabled = false
     }
-    let deleteButton = function(event) {
-      ctx.recorder.remove(idx)
-      for(var x of ctx.recorder.recordings) {
-        createRecordingUiElement(x)
+    // TODO: add delete
+    let deleteButton = (event) => {
+      this.recorder.remove(idx)
+      for(var x of this.recorder.recordings) {
+        this.createRecordingUiElement(x)
       }
     }
-    ctx.recorder.audioCreatedCb = function(src) {
-      createRecordingUiElement(src)
+    this.recorder.audioCreatedCb = (src) => {
+      this.createRecordingUiElement(src)
     }
     let toggleRecord = () => {
-      if(ctx.recordDisabled) {
+      if(this.recordDisabled) {
         return;
       }
-      if(!ctx.isRecording) {
-        if(ctx.isPlaying) {
+      if(!this.isRecording) {
+        if(this.isPlaying) {
           togglePlay()
-          ctx.wasPlaying = true
+          this.wasPlaying = true
         }
 
-        ctx.recorder.start()
-        ctx.isRecording = true
-        ctx.recordTime = vid.container.video.currentTime
+        this.recorder.start()
+        this.isRecording = true
+        this.recordTime = vid.container.video.currentTime
         recordBtn.innerHTML = "Stop Recording"
       } else {
-        ctx.recorder.stop()
+        this.recorder.stop()
         // TODO: set style disabled
-        ctx.isRecording = false
-        ctx.recordDisabled = true
+        this.isRecording = false
+        this.recordDisabled = true
         recordBtn.innerHTML = "Record"
-        ctx.reset_draw_canvas()
+        this.reset_draw_canvas()
         // TODO: add option?
-        if(ctx.wasPlaying) {
+        if(this.wasPlaying) {
           togglePlay()
-          ctx.wasPlaying = false
+          this.wasPlaying = false
         }
       }
     }
     recordBtn.addEventListener("click", toggleRecord)
-    ctx.submitAnn = () => {
+    this.submitting = false
+    this.submitAnn = () => {
+      // TODO: animation
+      if(this.submitting) {
+        return;
+      }
       console.debug("submit")
       var zip = new JSZip();
       zip.file("data.json", JSON.stringify({"array": [1,2,3], "something": "abc"}))
-      var img = zip.folder("videos");
-      // img.file("smile.", imgData, {base64: true});
-      zip.generateAsync({type: "blob"}).then(function(content) {
+      var vids = zip.folder("videos");
+      for(const idx in this.recorder.recordings) {
+        const recording = this.recorder.recordings[idx]
+        vids.file(`${idx}.${RECORDING_EXT}`, recording.blob, {type: "blob"})
+      }
+      this.submitting = true;
+      zip.generateAsync({type: "blob"}).then((content) => {
           saveFile(content, "annotations.zip");
       });
     }
-    ctx.rejectAnn = () => {
+    this.rejectAnn = () => {
       console.debug("reject")
     }
     let submitBtn = document.getElementById("submitBtn")
-    submitBtn.addEventListener("click", ctx.submitAnn)
+    submitBtn.addEventListener("click", this.submitAnn)
 
     let rejectBtn = document.getElementById("rejectBtn")
-    rejectBtn.addEventListener("click", ctx.rejectAnn)
+    rejectBtn.addEventListener("click", this.rejectAnn)
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
