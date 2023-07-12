@@ -1,5 +1,6 @@
 "use strict";
 
+const VIDEO_PATH = "cmu_soccer06_2.mp4"
 const RECORDING_EXT = "webm"
 const RECORDING_TYPE = `video/${RECORDING_EXT}`
 const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
@@ -368,7 +369,7 @@ class Narrator {
 
   init() {
     // TODO: get video dynamically
-    this.viewVideo = this.draw.add_create_video("cmu_soccer06_2.mp4");
+    this.viewVideo = this.draw.add_create_video(VIDEO_PATH);
     this.draw.draw_video(this.viewVideo, 0, 0, null, null, true);
     this.init_draw_canvas()
 
@@ -443,7 +444,7 @@ class Narrator {
     this.recordDisabled = false
     this.recordTime = null
     this.isRecording = false
-    this.createRecordingUiElement = (x) => {
+    this.endRecording = (x) => {
         // NOTE: actually video
         // TODO: log the data here including paths
         let src = x.url
@@ -470,18 +471,23 @@ class Narrator {
         node.appendChild(delButton)
         node.appendChild(replayButton)
         node.appendChild(audioNode)
+        x.data = {
+          time: this.recordTime,
+          // TODO: add timing information
+          // paths: {...this.draw.paths},
+          paths: [...this.draw.paths],
+        }
         this.recordTime = null
         this.recordDisabled = false
     }
     // TODO: add delete
     let deleteButton = (event) => {
+      // TODO: get index
+      console.log("Delete", event)
       this.recorder.remove(idx)
-      for(var x of this.recorder.recordings) {
-        this.createRecordingUiElement(x)
-      }
     }
-    this.recorder.audioCreatedCb = (src) => {
-      this.createRecordingUiElement(src)
+    this.recorder.audioCreatedCb = (x) => {
+      this.endRecording(x)
     }
     let toggleRecord = () => {
       if(this.recordDisabled) {
@@ -520,15 +526,21 @@ class Narrator {
       }
       console.debug("submit")
       var zip = new JSZip();
-      zip.file("data.json", JSON.stringify({"array": [1,2,3], "something": "abc"}))
       var vids = zip.folder("videos");
+      let data = []
       for(const idx in this.recorder.recordings) {
         const recording = this.recorder.recordings[idx]
-        vids.file(`${idx}.${RECORDING_EXT}`, recording.blob, {type: "blob"})
+        const path = `${idx}.${RECORDING_EXT}`
+        vids.file(path, recording.blob, {type: "blob"})
+        data.push({...recording.data, "video": path})
       }
+      zip.file("data.json", JSON.stringify(
+        data
+      ))
       this.submitting = true;
       zip.generateAsync({type: "blob"}).then((content) => {
-          saveFile(content, "annotations.zip");
+        saveFile(content, "annotations.zip");
+        this.submitting = false
       });
     }
     this.rejectAnn = () => {

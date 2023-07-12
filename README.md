@@ -14,13 +14,17 @@ npm run dev
 
 # TODOs
 
+- [ ] frontend
+    - [ ] scroll only sidebar
 - [ ] get outputs
     - [x] zip video files
-    - [ ] timestamps
+    - [x] timestamps
     - [ ] paths
+- [ ] paths: normalized from 0-1
 - [ ] annotations
     - [ ] delete
     - [ ] replay
+- [ ] shortcuts popup
 - [ ] settings screen
     - [ ] selection of video/audio
 - [ ] paths
@@ -32,6 +36,11 @@ npm run dev
 ## To investigate
 - https://webgazer.cs.brown.edu/ 
 - https://twitter.com/xenovacom/status/1678180605836533762
+
+(predicted) TODOs here
+- [ ] gaze 
+    - [ ] integrate JS tool
+    - [ ] calibration page
 
 # included deps
 
