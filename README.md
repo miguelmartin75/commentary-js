@@ -16,22 +16,27 @@ npm run dev
 
 - [ ] frontend
     - [ ] scroll only sidebar
-- [ ] get outputs
-    - [x] zip video files
-    - [x] timestamps
+    - [ ] get outputs
+        - [x] zip video files
+        - [x] timestamps
+        - [ ] paths
+    - [ ] paths: normalized from 0-1
+    - [ ] annotations
+        - [ ] delete
+        - [ ] replay
+    - [ ] shortcuts popup
+    - [ ] settings screen
+        - [ ] selection of video/audio
     - [ ] paths
-- [ ] paths: normalized from 0-1
-- [ ] annotations
-    - [ ] delete
-    - [ ] replay
-- [ ] shortcuts popup
-- [ ] settings screen
-    - [ ] selection of video/audio
-- [ ] paths
-    - [ ] path timing information
-- [ ] inputs
-    - [ ] local files
-    - [ ] backend
+        - [ ] path timing information
+    - [ ] inputs
+        - [ ] local files
+- [ ] backend
+    - [ ] generate https S3 path
+    - [ ] authenticate
+        - [ ] username/unixname
+        - [ ] auth key for S3
+    - [ ] get takes for scenario
 
 ## To investigate
 - https://webgazer.cs.brown.edu/ 
