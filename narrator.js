@@ -1,6 +1,62 @@
-const RECORDING_TYPE = "video/webm"
+"use strict";
+
+const RECORDING_EXT = "webm"
+const RECORDING_TYPE = `video/${RECORDING_EXT}`
 const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
+
+// ref: https://web.dev/patterns/files/save-a-file/#demo
+const saveFile = async (blob, suggestedName) => {
+  // Feature detection. The API needs to be supported
+  // and the app not run in an iframe.
+  const supportsFileSystemAccess =
+    'showSaveFilePicker' in window &&
+    (() => {
+      try {
+        return window.self === window.top;
+      } catch {
+        return false;
+      }
+    })();
+  // If the File System Access API is supported…
+  if (supportsFileSystemAccess) {
+    try {
+      // Show the file save dialog.
+      const handle = await showSaveFilePicker({
+        suggestedName,
+      });
+      // Write the blob to the file.
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err) {
+      // Fail silently if the user has simply canceled the dialog.
+      if (err.name !== 'AbortError') {
+        console.error(err.name, err.message);
+        return;
+      }
+    }
+  }
+  // Fallback if the File System Access API is not supported…
+  // Create the blob URL.
+  const blobURL = URL.createObjectURL(blob);
+  // Create the `<a download>` element and append it invisibly.
+  const a = document.createElement('a');
+  a.href = blobURL;
+  a.download = suggestedName;
+  a.style.display = 'none';
+  document.body.append(a);
+  // Click the element.
+  a.click();
+  // Revoke the blob URL and remove the element.
+  setTimeout(() => {
+    URL.revokeObjectURL(blobURL);
+    a.remove();
+  }, 1000);
+};
+
 
 class Recorder {
   setup(stream, newRecordingCb) {
@@ -68,13 +124,6 @@ class Video {
     video.muted = true; // TODO: configure
     video.loop = false;
 
-    // TODO: can we display the first frame?
-    video.addEventListener(
-      "canplay", () => {
-        console.log("can play")
-      },
-      true
-    );
     video.addEventListener(
       "playing", () => {
         this.playing = true;
@@ -203,7 +252,6 @@ class DrawCtx {
         vH = Math.min(vid.video.videoHeight, cH)
         vW = vH * ar
         offsetX = cW / 2 - vW / 2
-        console.log(cW, cH, offsetX, offsetY, vW, vH)
         this.gl.drawImage(
           frame,
           d.x + offsetX,
@@ -348,14 +396,17 @@ class Narrator {
     playBtn.addEventListener("click", togglePlay)
 
     let vid = this.viewVideo
-    document.getElementById("nextFrameBtn").addEventListener("click", () => {
+    // TODO: add to this
+    let nextFrame = () => {
       vid.container.video.currentTime += 1/30.0
       this.update_timeline()
-    });
-    document.getElementById("prevFrameBtn").addEventListener("click", () => {
+    }
+    let prevFrame = () => {
       vid.container.video.currentTime -= 1/30.0
       this.update_timeline()
-    });
+    }
+    document.getElementById("nextFrameBtn").addEventListener("click", nextFrame);
+    document.getElementById("prevFrameBtn").addEventListener("click", prevFrame);
     ctx.playBar = document.getElementById("playBar")
     ctx.timeInfo = document.getElementById("timeInfo")
     ctx.frameInfo = document.getElementById("frameInfo")
@@ -393,9 +444,7 @@ class Narrator {
     ctx.wasPlaying = false
     ctx.recordDisabled = false
     ctx.recordTime = null
-    let isRecording = function() {
-      return recordBtn.innerHTML === "Record"
-    }
+    ctx.isRecording = false
     let createRecordingUiElement = function(x) {
         // NOTE: actually video
         // TODO: log the data here including paths
@@ -414,7 +463,14 @@ class Narrator {
         delButton.addEventListener("click", function(event) {
           console.log("delete clicked")
         });
+        let replayButton = document.createElement("button")
+        replayButton.innerHTML = "Replay"
+        replayButton.className = REPLAY_ANN_BUTTON_CLASSES
+        replayButton.addEventListener("click", function(event) {
+          console.log("replay clicked")
+        });
         node.appendChild(delButton)
+        node.appendChild(replayButton)
         node.appendChild(audioNode)
         ctx.recordTime = null
         ctx.recordDisabled = false
@@ -428,33 +484,70 @@ class Narrator {
     ctx.recorder.audioCreatedCb = function(src) {
       createRecordingUiElement(src)
     }
-    recordBtn.addEventListener("click", function() {
+    let toggleRecord = () => {
       if(ctx.recordDisabled) {
         return;
       }
-      if(isRecording()) {
+      if(!ctx.isRecording) {
         if(ctx.isPlaying) {
           togglePlay()
           ctx.wasPlaying = true
         }
 
         ctx.recorder.start()
+        ctx.isRecording = true
         ctx.recordTime = vid.container.video.currentTime
         recordBtn.innerHTML = "Stop Recording"
       } else {
         ctx.recorder.stop()
         // TODO: set style disabled
+        ctx.isRecording = false
         ctx.recordDisabled = true
         recordBtn.innerHTML = "Record"
         ctx.reset_draw_canvas()
         // TODO: add option?
-        // if(ctx.wasPlaying) {
-        //   togglePlay()
-        //   ctx.wasPlaying = false
-        // }
+        if(ctx.wasPlaying) {
+          togglePlay()
+          ctx.wasPlaying = false
+        }
       }
-    })
+    }
+    recordBtn.addEventListener("click", toggleRecord)
+    ctx.submitAnn = () => {
+      console.debug("submit")
+      var zip = new JSZip();
+      zip.file("data.json", JSON.stringify({"array": [1,2,3], "something": "abc"}))
+      var img = zip.folder("videos");
+      // img.file("smile.", imgData, {base64: true});
+      zip.generateAsync({type: "blob"}).then(function(content) {
+          saveFile(content, "annotations.zip");
+      });
+    }
+    ctx.rejectAnn = () => {
+      console.debug("reject")
+    }
+    let submitBtn = document.getElementById("submitBtn")
+    submitBtn.addEventListener("click", ctx.submitAnn)
 
+    let rejectBtn = document.getElementById("rejectBtn")
+    rejectBtn.addEventListener("click", ctx.rejectAnn)
+
+    // shortcuts
+    document.addEventListener("keyup", (e) => {
+      console.debug("key", e)
+      if(e.key == " ") {
+        togglePlay()
+      } else if (e.key == "Enter") {
+        toggleRecord()
+      } 
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key == "n" || e.key == "ArrowRight") {
+        nextFrame()
+      } else if (e.key == "p" || e.key == "ArrowLeft") {
+        nextFrame()
+      }
+    });
 
   }
 
@@ -481,7 +574,7 @@ class Narrator {
 async function main() {
   const canvas = document.querySelector("#glcanvas");
   if(!canvas) {
-    console.log("no canvas provided");
+    console.error("no canvas provided");
     return;
   }
   let ctx = new Narrator();

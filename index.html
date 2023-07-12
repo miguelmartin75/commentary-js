@@ -12,6 +12,7 @@
       integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
       crossorigin="anonymous"
       defer></script>
+    <script src="jszip.min.js" type="module" defer></script>
     <script src="narrator.js" type="module" defer></script>
     <script src="style.css"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -56,10 +57,15 @@
                     <input class="w-full" type="range" min="1" max="100" value="0" class="slider" id="playBar">
                 </div>
             </main>
-            <div class='bg-gray-100 shadow-sm p-6 space-y-6 w-64'>
+            <div class='bg-gray-100 shadow-sm p-6 space-y-6 w-1/4'>
                 <div class="grow-0">
-                    <button id="recordBtn" class="
-                    m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                    <div class="flex">
+                        <button id="rejectBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                    ">Reject</button>
+                        <button id="submitBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                    ">Submit</button>
+                    </div>
+                    <button id="recordBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
                 ">Record</button>
                     <div>
                         <button id="clearStrokeBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
