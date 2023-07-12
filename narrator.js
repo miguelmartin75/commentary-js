@@ -189,6 +189,7 @@ class DrawCtx {
     const cW = this.canvas_width();
     const cH = this.canvas_height();
 
+    this.gl.clearRect(0, 0, cW, cH);
     for(const d of this.drawable_videos) {
       const info = this.videos[d.video_id];
       const vid = info.video;
@@ -233,7 +234,7 @@ class Narrator {
     for (var dev of devices) {
       if(dev.label.includes("MacBook Pro Microphone")) {
         micDevice = dev.deviceId
-      } else if(dev.label.includes("FaceTime HD Camera (3A71:F4B5)")) {
+      } else if(dev.label.includes("FaceTime HD Camera")) {
         videoDevice = dev.deviceId
       }
     }
