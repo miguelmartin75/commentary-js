@@ -4,8 +4,9 @@
   "description": "",
   "main": "narrator.js",
   "scripts": {
-    "build": "postcss src/style.css -o style.css",
-    "dev": "npm run build && live-server ./ --port=8080"
+    "build": "postcss src/style.css -o static/style.css",
+    "dev": "npm run build && flask --app backend/main.py --debug run --port 3333",
+    "prod": "npm run build && flask --app backend/main.py run"
   },
   "keywords": [],
   "author": "",
