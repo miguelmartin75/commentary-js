@@ -56,12 +56,16 @@ def upload_file():
 # 
 #     return jsonify({'presigned_url': response}), 200
 
+@app.route("/narrator.js")
+def main_src():
+    return send_file(os.path.join(REPO_DIR, "src/narrator.js"))
+
+
 # @cross_origin()
 # @compress.compressed()
 @app.route("/", defaults={"id": None})
 @app.route("/<id>")
 def index(id):
-    print("id=", id)
     return send_file(os.path.join(REPO_DIR, "src/index.html"))
 
 

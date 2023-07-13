@@ -1,12 +1,26 @@
 # narrator_js
 
+A port of the
+[epic-kitchens-100-narrator](https://github.com/epic-kitchens/epic-kitchens-100-narrator)
+to JavaScript.
+
 ## setup
 
 ```
 npm install
 ```
 
+server:
+
+```
+conda create -n narrator_js python=3.11 -y
+conda activate narrator_js
+pip install flask
+```
+
 ## run
+
+Please setup server beforehand.
 
 ```
 npm run dev
@@ -15,22 +29,35 @@ npm run dev
 # TODOs
 
 - [ ] frontend
-    - [ ] scroll only sidebar
-    - [ ] get outputs
+    - [x] scroll only sidebar
+    - [x] shortcuts popup
+    - [ ] annotation view
+        - [ ] seek to time
+        - [ ] delete
+        - [ ] replay (to remove)
+    - [ ] paths: normalized from 0-1
+    - [ ] next or previous annotation job
+    - [ ] input data
+        - [ ] local file
+        - [ ] local directory or series of files
+        - [ ] from server
+    - [ ] output data
         - [x] zip video files
         - [x] timestamps
         - [ ] paths
-    - [ ] paths: normalized from 0-1
-    - [ ] annotations
-        - [ ] delete
-        - [ ] replay
-    - [ ] shortcuts popup
+        - [ ] upload
+        - [ ] save (or upload) progress bar
+    - [ ] "open" screen
+        - [ ] connect to backend
+        - [ ] select which video
     - [ ] settings screen
-        - [ ] selection of video/audio
+        - [ ] selection of video/audio device
     - [ ] paths
         - [ ] path timing information
-    - [ ] inputs
-        - [ ] local files
+    - [ ] optimizations of UI
+    - [ ] cookies / save progress (maybe on backend too?)
+    - [ ] error messages
+    - [ ] log errors to server
 - [ ] backend
     - [ ] generate https S3 path
     - [ ] authenticate
@@ -53,3 +80,19 @@ npm run dev
     - https://raw.githubusercontent.com/eligrey/FileSaver.js/master/dist/FileSaver.min.js
 - https://github.com/Stuk/jszip/
     - https://raw.githubusercontent.com/eligrey/FileSaver.js/master/dist/FileSaver.min.js
+
+# code structure
+
+Styling is done with Tailwind-CSS, see docs here: https://tailwindcss.com/
+
+- `static/narrator.js` contains all the code 
+    - `Narrator` class contains the logic for the narrator
+        - `init()` initializes the UI, setups up event listeners & state for it
+        - `setup()` creates the recorder and canvas
+            - TODO: 
+    - `DrawCtx` contains all the data for drawing
+        - `videos` => list of length 1
+        - `paths` => a series of paths
+        - `renderFrame` => draws a frame in the canvas
+- `static/style.css` a post-css file for tailwind-css
+

@@ -190,20 +190,18 @@ function resize_canvas(canvas) {
   if (canvas.width !== width ||  canvas.height !== height) {
     canvas.width  = width;
     canvas.height = height;
-    // TODO configure style
-    canvas.lineWidth = 5;
-    canvas.lineCap = 'round';
-    canvas.strokeStyle = '#c0392b';
     return true;
   }
   return false;
 }
 
+// TODO: rename DrawCtx -> Renderer?
 class DrawCtx {
   constructor() {
     this.paths = []
     this.videos = []
     this.canvas = null;
+    // TODO: drawable textures?
   }
 
   setup(canvas) {
@@ -223,6 +221,9 @@ class DrawCtx {
 
 
     // TODO: configure or dynamic
+    this.gl.lineWidth = 5;
+    this.gl.lineCap = 'round';
+    this.gl.strokeStyle = '#c0392b';
     return null;
   }
 
@@ -334,7 +335,7 @@ class Narrator {
     this.viewVideo = this.draw.add_create_video(url, () => {
       this.pause()
     });
-    this.initDrawCanvas()
+    this.init_draw_canvas()
     this.viewVideo.container.video.onloadedmetadata = () => {
       this.playBar.max = this.duration;
     };
@@ -362,15 +363,15 @@ class Narrator {
     }
   }
 
-  resetDrawCanvas() {
+  reset_draw_canvas() {
     this.pos = {x: undefined, y: undefined}
     this.draw.clear_paths()
   }
 
-  initDrawCanvas() {
+  init_draw_canvas() {
     // modified from https://stackoverflow.com/a/30684711
     let ctx = this
-    this.resetDrawCanvas()
+    this.reset_draw_canvas()
     function set_draw_pos(e) {
       const target = e.target;
       const rect = target.getBoundingClientRect();
@@ -398,7 +399,7 @@ class Narrator {
     this.canvas.addEventListener("mousedown", set_draw_pos);
     this.canvas.addEventListener("mouseenter", set_draw_pos);
     // TODO: when recording save the time when cleared
-    this.clearStrokeBtn.addEventListener("click", () => { this.resetDrawCanvas() });
+    this.clearStrokeBtn.addEventListener("click", () => { this.reset_draw_canvas() });
   }
 
   updateTimeline() {
@@ -519,7 +520,7 @@ class Narrator {
         this.isRecording = false
         this.recordDisabled = true
         this.recordBtn.innerHTML = "Record"
-        this.resetDrawCanvas()
+        this.reset_draw_canvas()
         // TODO: add option?
         this.playDisabled = false
         if(this.wasPlaying) {
