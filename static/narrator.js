@@ -117,6 +117,7 @@ class Recorder {
   }
 
   start() {
+    // TODO: catch errors
     this.mediaRecorder.start()
   }
 
@@ -613,6 +614,9 @@ class Narrator {
       }
     }
     this.setScreen = (screen) => {
+      if(!screen) {
+        return;
+      }
       if(this.activeScreen === screen) {
         console.log("active is same", this.activeScreen, screen)
         return;
@@ -620,6 +624,7 @@ class Narrator {
 
       this.prevScreen = this.activeScreen
       this.activeScreen = screen
+      console.log("active=", this.activeScreen, "prev=", this.prevScreen)
       const a = this.getScreen(this.activeScreen)
       const b = this.getScreen(this.prevScreen)
       show(a)
@@ -645,6 +650,7 @@ class Narrator {
     this.recordBtn.addEventListener("click", this.toggleRecord)
     this.submitBtn.addEventListener("click", this.submitAnn)
     this.rejectBtn.addEventListener("click", this.rejectAnn)
+    this.mainMenuBtn.addEventListener("click", () => { this.setScreen(MAIN_SCREEN) })
     this.shortcutsBtn.addEventListener("click", () => { this.toggleScreen(SHORTCUTS_SCREEN) })
     this.settingsBtn.addEventListener("click", () => { this.toggleScreen(SETTINGS_SCREEN) })
 
