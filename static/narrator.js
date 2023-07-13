@@ -657,20 +657,22 @@ class Narrator {
     // shortcuts
     document.addEventListener("keyup", (e) => {
       console.debug("key", e)
-      if(e.key == " ") {
+      if(e.key === " ") {
         this.togglePlay()
-      } else if (e.key == "Enter") {
+      } else if (e.key === "Enter") {
         this.toggleRecord()
-      } else if(e.key == "?") {
+      } else if(e.key === "?") {
         this.showPrevScreen()
+      } else if(e.key === "Escape") {
+        this.toggleScreen(SETTINGS_SCREEN)
       }
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key == "." || e.key == "ArrowRight") {
+      if (e.key === "." || e.key === "ArrowRight") {
         this.nextFrame()
-      } else if (e.key == "," || e.key == "ArrowLeft") {
+      } else if (e.key === "," || e.key === "ArrowLeft") {
         this.nextFrame()
-      } else if(e.key == "?") {
+      } else if(e.key === "?") {
         this.setScreen(SHORTCUTS_SCREEN)
       }
     });

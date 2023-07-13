@@ -19,7 +19,7 @@
   </head>
 
   <body>
-      <div class="min-h-screen flex flex-col">
+      <div class="flex flex-col min-h-screen max-h-screen">
         <div class="bg-purple-600 px-8 flex items-center justify-between py-4 shadow-sm text-white">
             <button class="mx-1 px-4 py-1" id="mainMenuBtn">Narrator Tool</button>
             <!-- TODO -->
@@ -36,7 +36,7 @@
             id="settingsBtn">Settings (ESC)</button>
             </div>
         </div>
-        <div id="shortcutsScreen" class="hidden flex h-screen">
+        <div id="shortcutsScreen" class="flex h-screen overflow-hidden hidden">
             <div class="overflow-x-auto w-1/2 m-auto">
               <table class="border-2 w-full divide-y-2 divide-gray-200 bg-white text-sm">
                 <thead>
@@ -91,13 +91,13 @@
             </div>
         </div>
 
-        <div id="settingsScreen" class="hidden flex w-full items-center">
+        <div id="settingsScreen" class="flex h-screen overflow-hidden hidden">
             <div class="p-6 items-center">
                 TODO
             </div>
         </div>
 
-        <div id="mainScreen" class="flex flex-grow">
+        <div id="mainScreen" class="flex h-screen overflow-hidden">
             <main class='flex-grow p-6 overflow-hidden'> 
                 <div class="flex-1">
                     <canvas class="flex-1" id="glcanvas"> </canvas>
