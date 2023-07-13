@@ -6,6 +6,7 @@
   "scripts": {
     "build": "postcss src/style.css -o static/style.css",
     "dev": "npm run build && flask --app backend/main.py --debug run --port 3333",
+    "local": "npm run build && live-server ./ --port=8080",
     "prod": "npm run build && flask --app backend/main.py run"
   },
   "keywords": [],

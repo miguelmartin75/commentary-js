@@ -1,5 +1,10 @@
 "use strict";
 
+const MAIN_SCREEN = 1
+const SETTINGS_SCREEN = 2
+const SHORTCUTS_SCREEN = 3
+const START_SCREEN = MAIN_SCREEN
+
 const VIDEO_PATH = "static/cmu_soccer06_2.mp4"
 const RECORDING_EXT = "webm"
 const RECORDING_TYPE = `video/${RECORDING_EXT}`
@@ -58,6 +63,14 @@ const saveFile = async (blob, suggestedName) => {
   }, 1000);
 };
 
+const hide = (el) => {
+  el.classList.add("hidden")
+};
+
+const show = (el) => {
+  el.classList.remove("hidden")
+};
+
 
 class Recorder {
   setup(stream, newRecordingCb) {
@@ -79,8 +92,8 @@ class Recorder {
     this.mediaRecorder.addEventListener('stop', () => {
       let blob = new Blob(this.currentBlobs, { type: RECORDING_TYPE })
       let url = URL.createObjectURL(blob)
-      let curr = {url: url, idx: this.recordings.length, blob: blob}
-      this.recordings.push(curr)
+      let curr = {url: url, blob: blob}
+      this.recordings.unshift(curr)
       this.currentBlobs = []
       console.log(this.newRecordingCb)
       this.newRecordingCb(curr)
@@ -113,40 +126,42 @@ class Recorder {
 }
 
 class Video {
-  constructor(video, url, seek_to) {
+  constructor(video, url, on_play_fail, seek_to) {
+    // TODO: investigate performance using "timeupdate"
     this.playing = false;
     this.timeupdate = false;
     this.ready = false;
     this.url = url;
-    video.playsInline = true;
-    video.muted = true; // TODO: configure
-    video.loop = false;
     this.seek_to = seek_to;
+    this.on_play_fail = on_play_fail
 
-
-    video.addEventListener(
-      "playing", () => {
-        this.playing = true;
-        if(!this.ready) {
-          this.ready = true;
-          this.pause();
-          if(this.seek_to) {
-            this.video.currentTime = this.seek_to;
-          }
-        }
-      },
-      true
-    );
-
-    // TODO: investigate performance using "timeupdate"
-    video.src = url;
     this.video = video;
+    this.video.playsInline = true;
+    this.video.muted = true; // TODO: configure
+    this.video.loop = false;
+    this.video.src = url;
 
-    video.play(); // plays video to run init
+    // https://developer.chrome.com/blog/play-request-was-interrupted/
+    // plays video to run init
+    video.play().then(() => {
+      this.ready = true;
+      this.pause();
+      if(this.seek_to) {
+        this.video.currentTime = this.seek_to;
+      } else {
+        this.video.currentTime = 0;
+      }
+    }).catch(err => {
+      // do nothing
+    });
   }
 
   play() {
-    this.video.play();
+    this.video.play(() => {
+      this.playing = true;
+    }).catch(err => {
+      this.on_play_fail(err)
+    });
   }
 
   pause() {
@@ -159,16 +174,25 @@ class Video {
 }
 
 function resize_canvas(canvas) {
-  webglUtils.resizeCanvasToDisplaySize(canvas);
+  //webglUtils.resizeCanvasToDisplaySize(canvas);
+  // let multiplier = window.devicePixelRatio
+  let multiplier = 1
+  multiplier = multiplier || 1;
+  const width  = canvas.clientWidth  * multiplier | 0;
+  const height = canvas.clientHeight * multiplier | 0;
+  if (canvas.width !== width ||  canvas.height !== height) {
+    canvas.width  = width;
+    canvas.height = height;
+    return true;
+  }
+  return false;
 }
 
 // TODO: rename DrawCtx -> Renderer?
 class DrawCtx {
   constructor() {
-    this.videos = [];
-    this.textures = [];
-    this.drawable_videos = [];
     this.paths = []
+    this.videos = []
     this.canvas = null;
     // TODO: drawable textures?
   }
@@ -183,7 +207,9 @@ class DrawCtx {
     this.gl = gl;
     resize_canvas(this.canvas);
     window.addEventListener("resize", (event) => {
-      resize_canvas(this.canvas);
+      if(this.videos.length == 1) {
+        resize_canvas(this.canvas);
+      }
     });
 
 
@@ -194,10 +220,6 @@ class DrawCtx {
     return null;
   }
 
-  draw_video(video, x, y, w, h, keep_aspect) {
-    this.drawable_videos.push({video_id: video.id, x: x, y: y, w: w, h: h, keep_aspect: keep_aspect});
-  }
-
   add_path(path) {
     this.paths.push(path)
   }
@@ -206,17 +228,27 @@ class DrawCtx {
     this.paths = []
   }
 
-  add_create_video(url) {
-    // TODO multi video container
+  add_create_video(url, on_play_fail, seek_to) {
     const video_id = this.videos.length;
     const video_el = document.createElement("video");
-    const video = new Video(video_el, url);
+    const video = new Video(video_el, url, on_play_fail, seek_to);
 
-    this.videos.push({video: video});
-    return {
+    let ret = {
       container: video,
+      draw_data: {
+        x: 0,
+        y: 0,
+        w: undefined,
+        h: undefined,
+      },
       id: video_id,
     };
+    this.videos.push(ret);
+    return ret
+  }
+
+  remove_videos() {
+    this.videos = []
   }
 
   canvas_width() {
@@ -227,29 +259,25 @@ class DrawCtx {
     return this.canvas.clientHeight;
   }
 
-
-  render_frame(dt) {
+  renderFrame(dt) {
     const cW = this.canvas_width();
     const cH = this.canvas_height();
 
     this.gl.clearRect(0, 0, cW, cH);
-    for(const d of this.drawable_videos) {
-      const info = this.videos[d.video_id];
-      const vid = info.video;
-      if(vid.is_ready()) {
-        const frame = vid.video
-        let ar = vid.video.videoWidth / vid.video.videoHeight
-        let vW = d.w
-        let vH = d.h
+    for(const {container, draw_data} of this.videos) {
+      // TODO: use draw_data
+      if(container.is_ready()) {
+        const frame = container.video
+        let ar = container.video.videoWidth / container.video.videoHeight
+        let vH = Math.min(container.video.videoHeight, cH)
+        let vW = vH * ar
         let offsetX = 0
         let offsetY = 0
-        vH = Math.min(vid.video.videoHeight, cH)
-        vW = vH * ar
         offsetX = cW / 2 - vW / 2
         this.gl.drawImage(
           frame,
-          d.x + offsetX,
-          d.y + offsetY,
+          offsetX,
+          offsetY,
           vW,
           vH
         );
@@ -263,9 +291,10 @@ class DrawCtx {
     }
   }
 }
+
 class Narrator {
 
-  async setup(canvas) {
+  async createRecorder() {
     let err = null 
 
     // TODO: create a setup screen
@@ -280,14 +309,35 @@ class Narrator {
         videoDevice = dev.deviceId
       }
     }
-
-    console.log("Setup with", micDevice, videoDevice)
     const stream = await navigator.mediaDevices.getUserMedia({ // <1>
       // video: true,
       // audio: true,
       video: {deviceId: videoDevice},
       audio: {deviceId: micDevice},
     })
+    this.recorder = new Recorder()
+    err = this.recorder.setup(stream, this._recordingCreated)
+    if(err) {
+      return err
+    }
+    return err
+  }
+
+  openVideo(url) {
+    this.draw.remove_videos()
+    this.viewVideo = this.draw.add_create_video(url, () => {
+      this.pause()
+    });
+    this.init_draw_canvas()
+    this.viewVideo.container.video.onloadedmetadata = () => {
+      this.playBar.max = this.duration;
+    };
+  }
+
+  async setup(canvas) {
+    // TODO: micDevice, videoDevice
+    let err = await this.createRecorder()
+    if(err) return err;
 
     this.canvas = canvas;
     this.draw = new DrawCtx();
@@ -295,28 +345,20 @@ class Narrator {
     if(err) {
       return err;
     }
-
-    this.recorder = new Recorder()
-    err = this.recorder.setup(stream, this._audioCreated)
-    if(err) {
-      return err
-    }
-    this.audioCreatedCb = null
+    this.recordingCreatedCb = null
   }
 
-  _audioCreated(src) {
-    if(this.audioCreatedCb) {
-      console.log("audio created with callback")
-      this.audioCreatedCb(src)
+  _recordingCreated(src) {
+    if(this.recordingCreatedCb) {
+      this.recordingCreatedCb(src)
     } else {
-      console.log("audio created without callback")
+      console.error("recording created without callback")
     }
   }
 
   reset_draw_canvas() {
-    let ctx = this
-    ctx.pos = {x: undefined, y: undefined}
-    ctx.draw.clear_paths()
+    this.pos = {x: undefined, y: undefined}
+    this.draw.clear_paths()
   }
 
   init_draw_canvas() {
@@ -345,16 +387,15 @@ class Narrator {
       ctx.draw.add_path(path)
     }
 
-    this.canvas.addEventListener('mousemove', add_path);
-    this.canvas.addEventListener('mouseup', clear_draw_pos);
-    this.canvas.addEventListener('mousedown', set_draw_pos);
-    this.canvas.addEventListener('mouseenter', set_draw_pos);
-    document.getElementById("clearStrokeBtn").addEventListener("click", () => {
-      this.reset_draw_canvas()
-    });
+    this.canvas.addEventListener("mousemove", add_path);
+    this.canvas.addEventListener("mouseup", clear_draw_pos);
+    this.canvas.addEventListener("mousedown", set_draw_pos);
+    this.canvas.addEventListener("mouseenter", set_draw_pos);
+    // TODO: when recording save the time when cleared
+    this.clearStrokeBtn.addEventListener("click", () => { this.reset_draw_canvas() });
   }
 
-  update_timeline() {
+  updateTimeline() {
       this.playBar.value = this.viewVideo.container.video.currentTime
       this.timeInfo.innerHTML = `${this.viewVideo.container.video.currentTime}`
       this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * FPS)}`
@@ -372,6 +413,17 @@ class Narrator {
     this.frameInfo = document.getElementById("frameInfo")
     this.submitBtn = document.getElementById("submitBtn")
     this.rejectBtn = document.getElementById("rejectBtn")
+    this.clearStrokeBtn = document.getElementById("clearStrokeBtn")
+    this.mainMenuBtn = document.getElementById("mainMenuBtn")
+    this.shortcutsBtn = document.getElementById("shortcutsBtn")
+    this.settingsBtn = document.getElementById("settingsBtn")
+    this.mainScreen = document.getElementById("mainScreen")
+    this.shortcutsScreen = document.getElementById("shortcutsScreen")
+    this.settingsScreen = document.getElementById("settingsScreen")
+
+    // active screen
+    this.prevScreen = undefined
+    this.activeScreen = MAIN_SCREEN
 
     // player state
     this.isPlaying = false
@@ -383,35 +435,28 @@ class Narrator {
     this.recordTime = null
     this.isRecording = false
 
-    // annotation
+    // annotation submit/reject state
     this.submitting = false
-
-    // canvas
-    this.viewVideo = this.draw.add_create_video(VIDEO_PATH);
-    let vid = this.viewVideo
-    this.draw.draw_video(this.viewVideo, 0, 0, null, null, true);
-    this.init_draw_canvas()
 
     // simple state machine for slider, ref https://stackoverflow.com/a/61568207
     this.playBar.min = 0
     this.playBar.value = 0
     this.playBar.max = undefined
-    vid.container.video.onloadedmetadata = () => {
-      this.playBar.max = this.duration;
-    };
     this.sliderChanging = false;
     this.playBar.addEventListener("mousedown", () => {
       this.sliderChanging = true;
     });
     this.playBar.addEventListener("mouseup", () => {
       this.sliderChanging = false;
-      vid.container.video.currentTime = this.playBar.value;
-      this.update_timeline()
+      if(this.viewVideo) {
+        this.viewVideo.container.video.currentTime = this.playBar.value;
+        this.updateTimeline()
+      }
     });
     this.playBar.addEventListener("mousemove", () => {
-      if(this.sliderChanging) {
-        vid.container.video.currentTime = this.playBar.value;
-        this.update_timeline()
+      if(this.sliderChanging && this.viewVideo) {
+        this.viewVideo.container.video.currentTime = this.playBar.value;
+        this.updateTimeline()
       }
     });
     this.playBar.addEventListener("onchange", (value) => {
@@ -446,12 +491,12 @@ class Narrator {
       console.debug("reject")
     }
     this.toggleRecord = () => {
-      if(this.recordDisabled) {
+      if(this.recordDisabled || !this.viewVideo) {
         return;
       }
       if(!this.isRecording) {
         if(this.isPlaying) {
-          togglePlay()
+          this.pause()
           this.wasPlaying = true
         } else {
           this.wasPlaying = false
@@ -460,7 +505,7 @@ class Narrator {
         this.recorder.start()
         this.isRecording = true
         this.playDisabled = true
-        this.recordTime = vid.container.video.currentTime
+        this.recordTime = this.viewVideo.container.video.currentTime
         this.recordBtn.innerHTML = "Stop Recording"
       } else {
         this.recorder.stop()
@@ -472,33 +517,39 @@ class Narrator {
         // TODO: add option?
         this.playDisabled = false
         if(this.wasPlaying) {
-          togglePlay()
+          this.play()
           this.wasPlaying = false
         }
       }
     }
-    this.togglePlay = () => {
-      console.log(this.playDisabled)
-      if(this.playDisabled) {
+    this.pause = () => {
+      if(!this.viewVideo) return;
+      this.viewVideo.container.pause()
+      this.isPlaying = false
+      this.playBtn.innerHTML = "Play"
+    }
+    this.play = () => {
+      if(this.playDisabled || !this.viewVideo) {
         return;
       }
-      if(!this.isPlaying) {
-        vid.container.play()
-        this.isPlaying = true
-        this.playBtn.innerHTML = "Pause"
+      this.viewVideo.container.play()
+      this.isPlaying = true
+      this.playBtn.innerHTML = "Pause"
+    }
+    this.togglePlay = () => {
+      if(this.isPlaying) {
+        this.pause()
       } else {
-        vid.container.pause()
-        this.isPlaying = false
-        this.playBtn.innerHTML = "Play"
+        this.play()
       }
     }
     this.nextFrame = () => {
-      vid.container.video.currentTime += 1/30.0
-      this.update_timeline()
+      this.viewVideo.container.video.currentTime += 1/30.0
+      this.updateTimeline()
     }
     this.prevFrame = () => {
-      vid.container.video.currentTime -= 1/30.0
-      this.update_timeline()
+      this.viewVideo.container.video.currentTime -= 1/30.0
+      this.updateTimeline()
     }
     this.endRecording = (x) => {
         // NOTE: actually video
@@ -510,7 +561,6 @@ class Narrator {
         let audioNode = document.createElement("video")
         audioNode.src = src
         audioNode.setAttribute("controls", "controls")
-        audioList.appendChild(node);
 
         let delButton = document.createElement("button")
         delButton.innerHTML = "Delete"
@@ -527,49 +577,102 @@ class Narrator {
         node.appendChild(delButton)
         node.appendChild(replayButton)
         node.appendChild(audioNode)
+
+        audioList.prepend(node);
         x.data = {
           time: this.recordTime,
           // TODO: add timing information
           // paths: {...this.draw.paths},
-          paths: [...this.draw.paths],
+          // NOTE(miguelmartin): is there a better way to deep copy?
+          paths: JSON.parse(JSON.stringify(this.draw.paths)),
         }
         this.recordTime = null
         this.recordDisabled = false
     }
-    this.recorder.audioCreatedCb = (x) => {
+    this.recorder.recordingCreatedCb = (x) => {
       this.endRecording(x)
     }
     this.deleteRecording = (idx) => {
       this.recorder.remove(idx)
     }
+    this.getScreen = (screen_id) => {
+      if(!screen_id) {
+        return null
+      }
+
+      switch(screen_id) {
+        case MAIN_SCREEN: {
+          return this.mainScreen
+        }
+        case SETTINGS_SCREEN: {
+          return this.settingsScreen
+        }
+        case SHORTCUTS_SCREEN: {
+          return this.shortcutsScreen
+        }
+      }
+    }
+    this.setScreen = (screen) => {
+      if(this.activeScreen === screen) {
+        console.log("active is same", this.activeScreen, screen)
+        return;
+      }
+
+      this.prevScreen = this.activeScreen
+      this.activeScreen = screen
+      const a = this.getScreen(this.activeScreen)
+      const b = this.getScreen(this.prevScreen)
+      show(a)
+      hide(b)
+    }
+    this.showPrevScreen = () => {
+      console.log("showing previous screen", this.prevScreen, "curr=", this.activeScreen)
+      this.setScreen(this.prevScreen)
+    }
+    this.toggleScreen = (screen_id) => {
+      console.log("activeScreen=", this.activeScreen, screen_id)
+      if(this.activeScreen !== screen_id) {
+        console.log("setting", screen_id, this.activeScreen, this.activeScreen === screen_id)
+        this.setScreen(screen_id)
+      } else {
+        this.showPrevScreen()
+      }
+    }
     // TODO: add delete
     this.playBtn.addEventListener("click", this.togglePlay)
     this.nextFrameBtn.addEventListener("click", this.nextFrame);
-    this.prevFrameBtn.getElementById("prevFrameBtn").addEventListener("click", this.prevFrame);
-    this.recordBtn.addEventListener("click", toggleRecord)
+    this.prevFrameBtn.addEventListener("click", this.prevFrame);
+    this.recordBtn.addEventListener("click", this.toggleRecord)
     this.submitBtn.addEventListener("click", this.submitAnn)
     this.rejectBtn.addEventListener("click", this.rejectAnn)
+    this.shortcutsBtn.addEventListener("click", () => { this.toggleScreen(SHORTCUTS_SCREEN) })
+    this.settingsBtn.addEventListener("click", () => { this.toggleScreen(SETTINGS_SCREEN) })
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
       console.debug("key", e)
       if(e.key == " ") {
-        togglePlay()
+        this.togglePlay()
       } else if (e.key == "Enter") {
-        toggleRecord()
-      } 
+        this.toggleRecord()
+      } else if(e.key == "?") {
+        this.showPrevScreen()
+      }
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key == "n" || e.key == "ArrowRight") {
-        nextFrame()
-      } else if (e.key == "p" || e.key == "ArrowLeft") {
-        nextFrame()
+      if (e.key == "." || e.key == "ArrowRight") {
+        this.nextFrame()
+      } else if (e.key == "," || e.key == "ArrowLeft") {
+        this.nextFrame()
+      } else if(e.key == "?") {
+        this.setScreen(SHORTCUTS_SCREEN)
       }
     });
 
+    this.openVideo(VIDEO_PATH)
   }
 
-  run_draw_loop() {
+  runDrawLoop() {
     let then = 0;
     let ctx = this
     function render(now) {
@@ -577,9 +680,9 @@ class Narrator {
       const dt = now - then;
       then = now;
 
-      ctx.draw.render_frame(dt);
+      ctx.draw.renderFrame(dt);
       if(!ctx.sliderChanging && ctx.isPlaying) {
-        ctx.update_timeline()
+        ctx.updateTimeline()
       }
       requestAnimationFrame(render);
     }
@@ -602,7 +705,7 @@ async function main() {
   }
 
   ctx.init();
-  ctx.run_draw_loop();
+  ctx.runDrawLoop();
 }
 
 

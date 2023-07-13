@@ -19,20 +19,85 @@
   </head>
 
   <body>
-
       <div class="min-h-screen flex flex-col">
         <div class="bg-purple-600 px-8 flex items-center justify-between py-4 shadow-sm text-white">
-            <div>Narrator Tool</div>
+            <button class="mx-1 px-4 py-1"
+            id="mainMenuBtn">Narrator Tool</button>
             <!-- TODO -->
-            <button class="px-4 py-1 text-sm text-white-600 font-semibold
+            <div class="flex">
+            <button class="mx-1 px-4 py-1 text-sm text-white-600 font-semibold
                 rounded-full border border-white-600 hover:text-black
                 hover:bg-black-600 hover:border-black-600 focus:outline-none
             focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
-            id="settingsBtn">Shortcuts</button>
-            <button class="px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2" id="settingsBtn">Settings</button>
+            id="shortcutsBtn">Shortcuts (?)</button>
+            <button class="mx-1 px-4 py-1 text-sm text-white-600 font-semibold
+                rounded-full border border-white-600 hover:text-black
+                hover:bg-black-600 hover:border-black-600 focus:outline-none
+            focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+            id="settingsBtn">Settings (ESC)</button>
+            </div>
         </div>
-        <div class="flex flex-grow">
-            <main class='flex-grow p-6'> 
+        <div id="shortcutsScreen" class="hidden flex w-full items-center">
+            <div class="overflow-x-auto w-1/2">
+              <table class="w-full divide-y-2 divide-gray-200 bg-white text-sm">
+                <thead>
+                  <tr>
+                    <th class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                      Action
+                    </th>
+                    <th class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                      Shortcut Key
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Start or Stop Recording
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Enter</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Play Video
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Space</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Next Frame
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Right Arrow or .</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Previous Frame
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Left Arrow or ,</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Show Shortcuts
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">? (hold)</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Open Settings
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Escape (press)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+        </div>
+
+        <div id="settingsScreen" class="hidden flex w-full items-center">
+            TODO
+        </div>
+
+        <div id="mainScreen" class="flex flex-grow">
+            <main class='flex-grow p-6 overflow-hidden'> 
                 <div class="flex-1">
                     <canvas class="flex-1" id="glcanvas"> </canvas>
                 </div>
@@ -51,8 +116,8 @@
                     <input class="w-full" type="range" min="1" max="100" value="0" class="slider" id="playBar">
                 </div>
             </main>
-            <div class='bg-gray-100 shadow-sm p-6 space-y-6 w-1/4 overflow-auto'>
-                <div class="grow-0">
+            <div class="max-h-screen bg-gray-100 shadow-sm p-6 space-y-6 w-1/4 overflow-y-scroll">
+                <div>
                     <div class="flex">
                         <button id="rejectBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
                     ">Reject</button>
@@ -66,7 +131,7 @@
                     ">Clear Stroke</button>
                     </div>
                 </div>
-                <div class="grow">
+                <div>
                     <ol id="audioList">
                     </ol>
                 </div>
