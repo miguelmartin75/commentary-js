@@ -29,16 +29,17 @@ npm run dev
 # TODOs
 
 - [ ] frontend
-    - [x] scroll only sidebar
-    - [x] shortcuts popup
+    - (1) [ ] input: open local video file
+    - (2) [ ] delete annotation
+    - (3) [ ] paths: normalized from 0-1
+    - (4) [ ] settings screen: selection of video/audio device
+    - (5) [ ] cookies / save progress (maybe on backend too?)
+        - https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API
     - [ ] annotation view
         - [ ] seek to time
-        - [ ] delete
         - [ ] replay (to remove)
-    - [ ] paths: normalized from 0-1
     - [ ] next or previous annotation job
     - [ ] input data
-        - [ ] local file
         - [ ] local directory or series of files
         - [ ] from server
     - [ ] output data
@@ -50,14 +51,12 @@ npm run dev
     - [ ] "open" screen
         - [ ] connect to backend
         - [ ] select which video
-    - [ ] settings screen
-        - [ ] selection of video/audio device
-    - [ ] paths
-        - [ ] path timing information
+    - [ ] paths: timing information
     - [ ] optimizations of UI
-    - [ ] cookies / save progress (maybe on backend too?)
     - [ ] error messages
     - [ ] log errors to server
+    - [x] scroll only sidebar
+    - [x] shortcuts popup
 - [ ] backend
     - [ ] generate https S3 path
     - [ ] authenticate
