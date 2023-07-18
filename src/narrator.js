@@ -3,7 +3,8 @@
 const MAIN_SCREEN = 1
 const SETTINGS_SCREEN = 2
 const SHORTCUTS_SCREEN = 3
-const START_SCREEN = MAIN_SCREEN
+const START_SCREEN = SETTINGS_SCREEN
+// const START_SCREEN = MAIN_SCREEN
 
 const VIDEO_PATH = "static/cmu_soccer06_2.mp4"
 const RECORDING_EXT = "webm"
@@ -180,28 +181,38 @@ class Video {
   }
 }
 
-function resize_canvas(canvas) {
+function resize_canvas(canvas, ctx) {
   //webglUtils.resizeCanvasToDisplaySize(canvas);
   // let multiplier = window.devicePixelRatio
   let multiplier = 1
   multiplier = multiplier || 1;
   const width  = canvas.clientWidth  * multiplier | 0;
   const height = canvas.clientHeight * multiplier | 0;
-  if (canvas.width !== width ||  canvas.height !== height) {
+  console.log("canvas w/h=", width, height)
+  if (canvas.width !== width || canvas.height !== height) {
+    console.log("resize")
     canvas.width  = width;
     canvas.height = height;
+    // TODO configure style
+    ctx.lineCap = 'round';
+    const fontSize = Math.round(canvas.height / 10)
+    ctx.font = `${fontSize}px serif`;
+    ctx.strokeStyle = '#c0392b';
     return true;
   }
   return false;
 }
 
-// TODO: rename DrawCtx -> Renderer?
 class DrawCtx {
   constructor() {
     this.paths = []
     this.videos = []
     this.canvas = null;
-    // TODO: drawable textures?
+    this.enableVideo = false;
+  }
+
+  onResize() {
+    resize_canvas(this.canvas, this.gl);
   }
 
   setup(canvas) {
@@ -212,18 +223,14 @@ class DrawCtx {
     }
 
     this.gl = gl;
-    resize_canvas(this.canvas);
     window.addEventListener("resize", (event) => {
-      if(this.videos.length == 1) {
-        resize_canvas(this.canvas);
+      if(this.videos.length >= 1) {
+        this.onResize();
       }
     });
 
 
     // TODO: configure or dynamic
-    this.gl.lineWidth = 5;
-    this.gl.lineCap = 'round';
-    this.gl.strokeStyle = '#c0392b';
     return null;
   }
 
@@ -271,6 +278,14 @@ class DrawCtx {
     const cH = this.canvas_height();
 
     this.gl.clearRect(0, 0, cW, cH);
+    // TODO
+    // if(!this.enableVideo) {
+    //   const textX = cW / 4;
+    //   const textY = cH / 2;
+    //   const text = "Open Settings (press ESC)";
+    //   this.gl.fillText(text, textX, textY);
+    //   return;
+    // }
     for(const {container, draw_data} of this.videos) {
       // TODO: use draw_data
       if(container.is_ready()) {
@@ -290,65 +305,70 @@ class DrawCtx {
         );
       }
     }
-    for(const path of this.paths) {
-      this.gl.beginPath();
-      this.gl.moveTo(path.from.x, path.from.y)
-      this.gl.lineTo(path.to.x, path.to.y)
-      this.gl.stroke(); // draw it!
+    // TODO
+    if(this.paths.length > 0) {
+      this.gl.lineWidth = 5;
+      for(const path of this.paths) {
+        this.gl.beginPath();
+        this.gl.moveTo(path.from.x, path.from.y)
+        this.gl.lineTo(path.to.x, path.to.y)
+        this.gl.stroke(); // draw it!
+      }
+
     }
   }
 }
 
 class Narrator {
 
-  async createRecorder() {
+  async createRecorder(videoDevice, micDevice) {
     let err = null 
 
-    // TODO: create a setup screen
-    // TODO https://github.com/samdutton/simpl/blob/gh-pages/getusermedia/sources/js/main.js
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    let micDevice = null
-    let videoDevice = null
-    for (var dev of devices) {
-      if(dev.label.includes("MacBook Pro Microphone")) {
-        micDevice = dev.deviceId
-      } else if(dev.label.includes("FaceTime HD Camera")) {
-        videoDevice = dev.deviceId
-      }
-    }
     const stream = await navigator.mediaDevices.getUserMedia({ // <1>
-      // video: true,
-      // audio: true,
       video: {deviceId: videoDevice},
       audio: {deviceId: micDevice},
     })
+    console.log("stream=", stream)
+    var tracks = stream.getTracks();
+    for(var i = 0; i < tracks.length; i++){
+       console.log('track', i, tracks[i].getSettings().deviceId)
+    }
+
+
     this.recorder = new Recorder()
     err = this.recorder.setup(stream, this._recordingCreated)
     if(err) {
       return err
     }
+    this.recorder.recordingCreatedCb = (x) => {
+      this.endRecording(x)
+    }
+    this.settingsPreviewVideo.autoplay = true
+    this.settingsPreviewVideo.muted = true
+    this.settingsPreviewVideo.srcObject = stream;
+    // this.settingsPreviewVideo.src = URL.createObjectURL(stream);
     return err
   }
 
   openVideo(url) {
+    console.log("Opened:", url)
     this.draw.remove_videos()
     this.viewVideo = this.draw.add_create_video(url, () => {
       this.pause()
     });
-    this.init_draw_canvas()
-    this.viewVideo.container.video.onloadedmetadata = () => {
-      this.playBar.max = this.duration;
+    let ctx = this;
+    this.viewVideo.container.video.onloadedmetadata = function() {
+      let dur = this.duration;
+      console.log("media duration", dur)
+      ctx.playBar.max = dur;
     };
   }
 
   async setup(canvas) {
-    // TODO: micDevice, videoDevice
-    let err = await this.createRecorder()
-    if(err) return err;
-
+    this.recorder = new Recorder()
     this.canvas = canvas;
     this.draw = new DrawCtx();
-    this.draw.setup(canvas);
+    let err = this.draw.setup(canvas);
     if(err) {
       return err;
     }
@@ -363,15 +383,16 @@ class Narrator {
     }
   }
 
-  reset_draw_canvas() {
+  resetDrawCanvas() {
     this.pos = {x: undefined, y: undefined}
     this.draw.clear_paths()
   }
 
-  init_draw_canvas() {
+  initDrawCanvas() {
     // modified from https://stackoverflow.com/a/30684711
     let ctx = this
-    this.reset_draw_canvas()
+    this.resetDrawCanvas()
+    // this.draw.onResize()
     function set_draw_pos(e) {
       const target = e.target;
       const rect = target.getBoundingClientRect();
@@ -399,17 +420,94 @@ class Narrator {
     this.canvas.addEventListener("mousedown", set_draw_pos);
     this.canvas.addEventListener("mouseenter", set_draw_pos);
     // TODO: when recording save the time when cleared
-    this.clearStrokeBtn.addEventListener("click", () => { this.reset_draw_canvas() });
+    this.clearStrokeBtn.addEventListener("click", () => { this.resetDrawCanvas() });
   }
 
   updateTimeline() {
-      this.playBar.value = this.viewVideo.container.video.currentTime
-      this.timeInfo.innerHTML = `${this.viewVideo.container.video.currentTime}`
-      this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * FPS)}`
+    this.playBar.value = this.viewVideo.container.video.currentTime
+    this.timeInfo.innerHTML = `${this.viewVideo.container.video.currentTime}`
+    this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * FPS)}`
   }
 
-  init() {
+  async initSettings() {
+    // this.openVideo(VIDEO_PATH)
+    this.startAnnotatingBtn = document.getElementById("startAnnotatingBtn")
+    this.cameraSelector = document.getElementById("cam")
+    this.micSelector = document.getElementById("mic")
+    this.settingsPreviewVideo = document.getElementById("settingsPreviewVideo")
+    this.videoFileInput = document.getElementById("videoFile")
+    this.videoFileInput.addEventListener("change", () => {
+      // TODO: support multiple files
+      console.log("opened:", this.videoFileInput.files)
+      this.openVideo(URL.createObjectURL(this.videoFileInput.files[0]))
+      // this.videoFileInput.files[0]
+    }, false);
+
+
+    this.devById = {}
+    const addVideoDevice = (x, idx, isSelected) => {
+      console.log("addVideoDevice(", x, idx, isSelected, ")")
+      let node = document.createElement("option")
+      node.innerHTML = x.label;
+      node.selected = isSelected;
+      node.value = x.deviceId
+      this.cameraSelector.appendChild(node);
+    }
+
+    const addAudioDevice = (x, idx, isSelected) => {
+      let node = document.createElement("option")
+      node.innerHTML = x.label;
+      node.selected = isSelected;
+      node.value = x.deviceId
+      this.micSelector.appendChild(node);
+    }
+
+    // setup devices
+    this.devices = await navigator.mediaDevices.enumerateDevices()
+    let micDevice = null
+    let videoDevice = null
+    for (var idx in this.devices) {
+      const dev = this.devices[idx];
+      const isDefault = dev.deviceId === "default";
+      const isAudioInp = dev.kind === "audioinput";
+      const isVideoInp = dev.kind === "videoinput";
+      this.devById[dev.deviceId] = dev;
+      if(isAudioInp) {
+        addAudioDevice(dev, idx, isDefault)
+        if(isDefault) {
+          micDevice = dev.deviceId
+        }
+      } else if(isVideoInp) {
+        addVideoDevice(dev, idx, isDefault)
+        if(isDefault) {
+          videoDevice = dev.deviceId
+        }
+      }
+    }
+    console.log(micDevice, videoDevice)
+
+    let camOrMicChanged = () => {
+      const camDevId = this.cameraSelector.value;
+      const micDevId = this.micSelector.value;
+      this.createRecorder(camDevId, micDevId)
+    }
+    this.cameraSelector.addEventListener("change", camOrMicChanged)
+    this.micSelector.addEventListener("change", camOrMicChanged)
+
+    this.startAnnotatingBtn.addEventListener("click", () => {
+      // TODO
+      fetch('/videos/test_id').then(r => r.json()).then(x => {
+        console.log("response", x)
+      })
+    });
+
+    let err = await this.createRecorder(videoDevice, micDevice)
+    if(err) return err;
+  }
+
+  async init() {
     // ui elements
+    this.micSelector = document.getElementById("mic")
     this.recordBtn = document.getElementById("recordBtn")
     this.playBtn = document.getElementById("playBtn")
     this.nextFrameBtn = document.getElementById("nextFrameBtn")
@@ -430,17 +528,16 @@ class Narrator {
 
     // active screen
     this.prevScreen = undefined
-    this.activeScreen = MAIN_SCREEN
+    this.activeScreen = START_SCREEN
 
     // player state
     this.isPlaying = false
     this.playDisabled = false
-    this.wasPlaying = false
 
     // recorder state
     this.recordDisabled = false
     this.recordTime = null
-    this.isRecording = false
+    this.wasPlaying = false
 
     // annotation submit/reject state
     this.submitting = false
@@ -520,7 +617,7 @@ class Narrator {
         this.isRecording = false
         this.recordDisabled = true
         this.recordBtn.innerHTML = "Record"
-        this.reset_draw_canvas()
+        this.resetDrawCanvas()
         // TODO: add option?
         this.playDisabled = false
         if(this.wasPlaying) {
@@ -598,9 +695,6 @@ class Narrator {
         this.recordTime = null
         this.recordDisabled = false
     }
-    this.recorder.recordingCreatedCb = (x) => {
-      this.endRecording(x)
-    }
     this.deleteRecording = (idx) => {
       this.recorder.remove(idx)
     }
@@ -637,18 +731,23 @@ class Narrator {
       const b = this.getScreen(this.prevScreen)
       show(a)
       hide(b)
+      this.draw.onResize()
     }
     this.showPrevScreen = () => {
       console.log("showing previous screen", this.prevScreen, "curr=", this.activeScreen)
       this.setScreen(this.prevScreen)
     }
-    this.toggleScreen = (screen_id) => {
-      console.log("activeScreen=", this.activeScreen, screen_id)
+    this.toggleScreen = (screen_id, other_screen) => {
       if(this.activeScreen !== screen_id) {
         console.log("setting", screen_id, this.activeScreen, this.activeScreen === screen_id)
         this.setScreen(screen_id)
       } else {
-        this.showPrevScreen()
+        if(other_screen) {
+          this.setScreen(other_screen)
+        }
+        else {
+          this.showPrevScreen()
+        }
       }
     }
     // TODO: add delete
@@ -677,7 +776,7 @@ class Narrator {
       } else if(e.key === "?") {
         this.showPrevScreen()
       } else if(e.key === "Escape") {
-        this.toggleScreen(SETTINGS_SCREEN)
+        this.toggleScreen(SETTINGS_SCREEN, MAIN_SCREEN)
       }
     });
     document.addEventListener("keydown", (e) => {
@@ -690,7 +789,9 @@ class Narrator {
       }
     });
 
-    this.openVideo(VIDEO_PATH)
+
+    this.initDrawCanvas()
+    await this.initSettings()
   }
 
   runDrawLoop() {
@@ -701,9 +802,11 @@ class Narrator {
       const dt = now - then;
       then = now;
 
-      ctx.draw.renderFrame(dt);
-      if(!ctx.sliderChanging && ctx.isPlaying) {
-        ctx.updateTimeline()
+      if(ctx.activeScreen == MAIN_SCREEN) {
+        ctx.draw.renderFrame(dt);
+        if(!ctx.sliderChanging && ctx.isPlaying) {
+          ctx.updateTimeline()
+        }
       }
       requestAnimationFrame(render);
     }
@@ -725,7 +828,7 @@ async function main() {
     alert(err)
   }
 
-  ctx.init();
+  await ctx.init();
   ctx.runDrawLoop();
 }
 

@@ -2,16 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>EgoExo Video Player Prototype</title>
-    <script
-        src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script>
-    <script
-        src="https://webgl2fundamentals.org/webgl/resources/m4.js"></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
-      integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
-      crossorigin="anonymous"
-      defer></script>
+    <title>EgoExo Narrator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="static/jszip.min.js" type="module" defer></script>
     <script src="narrator.js" type="module" defer></script>
@@ -91,18 +82,102 @@
             </div>
         </div>
 
-        <div id="settingsScreen" class="flex h-screen overflow-hidden hidden">
-            <div class="p-6 items-center">
-                TODO
+        <div id="settingsScreen" class="flex h-screen overflow-hidden m-auto max-w-screen w-full">
+            <div class="m-auto flex w-9/12 ">
+                <div class="grow px-6">
+                    <div class="flex w-full">
+                        <div class="w-full m-auto">
+                        <label for="cam" class="block text-gray-700 text-sm font-bold mb-2">Camera</label>
+                        <select name="cam" id="cam" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="null">No Device</option>
+                        </select>
+                        </div>
+
+                        <div class="w-full m-auto">
+                        <label for="mic" class="block text-gray-700 text-sm font-bold mb-2">Microphone</label>
+                        <select name="mic" id="mic" class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="null">No Device</option>
+                        </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <video id="settingsPreviewVideo" class="grow"></video>
+                        <div class="grow-0">
+                            <div class="block text-gray-700 text-sm font-bold mb-2">Mic Volume</div> <input class="w-full" type="range" min="1" max="100" value="0" class="slider" id="volumeBar" disabled>
+                            <div class="block text-gray-500">Please <b>check your Microphone volume</b> by looking at the bar move up/down as you speak</div>
+                        </div>
+                    </div>
+                </div>
+                <form class="flex-col grow-0 px-6 w-1/3">
+                    <form class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 ">
+                        <div class="shadow appearance-none border p-6">
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+                                    User ID
+                                </label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" type="text" placeholder="User ID">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="expertise">
+                                    Category
+                                </label>
+                                <select name="expertise" id="expertise" class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                                  <option value="cooking">Cooking</option>
+                                  <option value="bike_repair">Bike Repair</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="videoSelect">
+                                    Video Selector
+                                </label>
+                                <select name="videoSelect" id="videoSelect" class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                                  <option value="cmu_cooking_01">cmu_cooking_01</option>
+                                  <option value="cmu_cooking_02">cmu_cooking_02</option>
+                                </select>
+                                <button id="confirmVideoBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                                    Use These Videos
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between">
+                            </div>
+                        </div>
+
+                        <!-- or separator -->
+                        <div class="inline-flex items-center justify-center w-full">
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                            <span class="px-3 font-small text-gray-900  bg-white left-1/2">or</span>
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                        </div>
+
+                        <div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="videoFile">
+                                    Open Video File
+                                </label>
+                                <input class="shadow appearance-none border rounded w-full p-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="videoFile" type="file">
+                            </div>
+                        </div>
+                        <div class="inline-flex items-center justify-center w-full">
+                            <hr class="w-full h-px my-8 bg-gray-200 border-0">
+                        </div>
+                        <div>
+                            <button id="startAnnotatingBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                                Start Annotating
+                            </button>
+                        </div>
+                    </form>
+                </form>
             </div>
         </div>
 
-        <div id="mainScreen" class="flex h-screen overflow-hidden">
-            <main class='flex-grow p-6 overflow-hidden'> 
-                <div class="flex-1">
-                    <canvas class="flex-1" id="glcanvas"> </canvas>
+        <div id="mainScreen" class="flex h-screen overflow-hidden hidden">
+            <main class='flex-grow p-6 overflow-hidden max-h-screen'> 
+
+                <div class="w-full max-w-full h-5/6 grow-0 m-auto">
+                    <canvas id="glcanvas" class="min-h-full"> </canvas>
                 </div>
-                <div class="w-full flex-col content-center">
+                <div class="w-full flex-col content-center grow-0 min-h-max max-h-full h-1/6">
                     <div class="flex w-full">
                         <button id="prevFrameBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2">Prev Frame</button>
                         <button id="playBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
