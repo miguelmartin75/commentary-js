@@ -9,11 +9,14 @@ const BASE_LINE_WIDTH_PER_1K_PX = 8;
 const MIN_LINE_WIDTH = 3;
 
 const RECORDING_EXT = "webm"
-const VIDEO_RECORDING_TYPE = `video/${RECORDING_EXT}`
-const AUDIO_RECORDING_TYPE = `audio/${RECORDING_EXT}`
+const VIDEO_RECORDING_TYPE = `video/${RECORDING_EXT}; codec="h264,aac"`
+const AUDIO_RECORDING_TYPE = `audio/${RECORDING_EXT}; codec=aac`
+const TIME_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
+
+const ENABLE_REPLAY = false;
 
 const deepCopy = (x) => {
   // NOTE(miguelmartin): is there a better way to deep copy?
@@ -105,14 +108,24 @@ const show = (el) => {
 
 
 class Recorder {
+  getExt() {
+    if(this.videoEnabled) {
+      return "mp4"
+    } else {
+      return "mp3"
+    }
+  }
+
+  constructor() {
+    this.currentBlobs = []
+    this.recordings = []
+    this.currentId = 0
+  }
+
   setup(stream, newRecordingCb, hasVideo) {
     if(!stream) {
       return "no stream given"
     }
-    this.currentBlobs = []
-    this.recordings = []
-    this.currentId = 0
-
     const recordingType = hasVideo ? VIDEO_RECORDING_TYPE : AUDIO_RECORDING_TYPE;
     this.videoEnabled = hasVideo
 
@@ -375,7 +388,6 @@ class DrawCtx {
 }
 
 class Narrator {
-
   async createRecorder(videoDevice, micDevice) {
     let err = null 
 
@@ -386,7 +398,6 @@ class Narrator {
       }
     }
     
-    console.log("videoDevice", videoDevice)
     let media = { }
     if(videoDevice !== "_none") {
       media["video"] = {deviceId: videoDevice}
@@ -398,8 +409,8 @@ class Narrator {
     } else {
       media["audio"] = false
     }
-    console.log("media=", media)
 
+    this.recordDisabled = true
     this.stream = await navigator.mediaDevices.getUserMedia(media)
     var tracks = this.stream.getTracks();
     for(var i = 0; i < tracks.length; i++){
@@ -410,11 +421,11 @@ class Narrator {
       }
     }
 
-    this.recorder = new Recorder()
     err = this.recorder.setup(this.stream, this._recordingCreated, media["video"] !== false)
     if(err) {
       return err
     }
+    this.recordDisabled = false
     this.recorder.recordingCreatedCb = (x) => {
       this.endRecording(x)
     }
@@ -425,8 +436,15 @@ class Narrator {
   }
 
   openVideo(url) {
+    if(this.viewVideo && url === this.viewVideo.container.url) {
+      return;
+    }
     console.log("Opened:", url)
+    this.recorder.stop()
+    this.clearAnnotations()
+    this.clearStroke()
     this.draw.removeVideos()
+
     this.viewVideo = this.draw.addCreateVideo(url, () => {
       this.pause()
       this.draw.onResize()
@@ -765,11 +783,12 @@ class Narrator {
 
         this.recorder.start()
         this.isRecording = true
-        // TODO: configuration option?
-        // this.playDisabled = true
         this.recordStartAppTime = timeNow()
         this.recordTime = this.viewVideo.container.video.currentTime
         this.recordBtn.innerHTML = "Stop Recording"
+        if(!ENABLE_REPLAY) {
+          this.playDisabled = true
+        }
       } else {
         this.recorder.stop()
         // TODO: set style disabled
@@ -805,6 +824,9 @@ class Narrator {
       }
     }
     this.nextFrame = () => {
+      if(!ENABLE_REPLAY && this.isRecording) {
+        return;
+      }
       this.viewVideo.container.video.currentTime += 1/30.0
       if(this.isRecording) {
         this.addEvent({type: "video", action: "next_frame", video_time: this.viewVideo.container.currentTime})
@@ -812,6 +834,9 @@ class Narrator {
       this.updateTimeline()
     }
     this.prevFrame = () => {
+      if(!ENABLE_REPLAY && this.isRecording) {
+        return;
+      }
       this.viewVideo.container.video.currentTime -= 1/30.0
       if(this.isRecording) {
         this.addEvent({type: "video", action: "prev_frame", video_time: this.viewVideo.container.currentTime})
@@ -819,57 +844,83 @@ class Narrator {
       this.updateTimeline()
     }
     this.endRecording = (x) => {
-        let endTime = timeNow()
+      let endTime = timeNow()
 
-        // NOTE: actually video
-        // TODO: log the data here including paths
-        let src = x.url
-        let node = document.createElement("li")
-        node.innerHTML = `Time: ${this.recordTime} `
+      // NOTE: actually video
+      // TODO: log the data here including paths
+      let src = x.url
+      let node = document.createElement("li")
+      console.log(x)
 
-        let tag = this.recorder.videoEnabled ? "video": "audio"
-        let recNode = document.createElement(tag)
-        recNode.src = src
-        recNode.setAttribute("controls", "controls")
+      let timeButton = document.createElement("button")
+      let recordTime = this.recordTime;
+      timeButton.innerHTML = `Time: ${this.recordTime} `
+      timeButton.className = TIME_BUTTON_CLASSES
+      timeButton.addEventListener("click", () => {
+        console.log("timebutton", recordTime)
+        if(this.viewVideo) {
+          console.log("seek")
+          this.viewVideo.container.video.currentTime = recordTime;
+          this.updateTimeline()
+        }
+      });
 
-        let delButton = document.createElement("button")
-        delButton.innerHTML = "Delete"
-        delButton.className = DELETE_BUTTON_CLASSES
-        delButton.addEventListener("click", (event) => {
-          console.log("delete clicked")
-        });
+      let tag = this.recorder.videoEnabled ? "video": "audio"
+      let recNode = document.createElement(tag)
+      recNode.src = src
+      recNode.setAttribute("controls", "controls")
+      console.log("recNode=", recNode)
+      recNode.onloadedmetadata = function() {
+        console.log("dur=", this.duration)
+      }
+
+      let delButton = document.createElement("button")
+      delButton.innerHTML = "Delete"
+      delButton.className = DELETE_BUTTON_CLASSES
+      delButton.addEventListener("click", (e) => {
+        console.log("delete clicked", e)
+      });
+      disableFocusForElement(timeButton)
+      disableFocusForElement(recNode)
+      disableFocusForElement(delButton)
+      node.appendChild(timeButton)
+      node.appendChild(delButton)
+      node.appendChild(recNode)
+
+      if(ENABLE_REPLAY) {
         let replayButton = document.createElement("button")
         replayButton.innerHTML = "Replay"
         replayButton.className = REPLAY_ANN_BUTTON_CLASSES
-        replayButton.addEventListener("click", (event) => {
+        replayButton.addEventListener("click", () => {
           console.log("replay clicked")
         });
-        disableFocusForElement(recNode)
-        disableFocusForElement(delButton)
         disableFocusForElement(replayButton)
-        node.appendChild(delButton)
         node.appendChild(replayButton)
-        node.appendChild(recNode)
+      }
 
-        audioList.prepend(node);
-        this.finishStrokes()
-        x.data = {
-          video_time: this.recordTime,
-          start_global_time: this.recordStartAppTime,
-          end_global_time: endTime,
-          events: deepCopy(this.recordedEvents)
-        }
-        this.recordTime = null
-        this.recordDisabled = false
-        this.recordStartAppTime = null
-        this.recordedEvents = []
-        this.isRecording = false
-        // TODO: add option for whether we want auto-play?
-        if(this.wasPlaying) {
-          this.play()
-          this.wasPlaying = false
-        }
-        this.resetDrawCanvas()
+      audioList.prepend(node);
+      this.finishStrokes()
+      x.data = {
+        video_time: this.recordTime,
+        start_global_time: this.recordStartAppTime,
+        end_global_time: endTime,
+        events: deepCopy(this.recordedEvents)
+      }
+      this.recordTime = null
+      this.recordDisabled = false
+      this.recordStartAppTime = null
+      this.recordedEvents = []
+      this.isRecording = false
+      this.playDisabled = false
+      // TODO: add option for whether we want auto-play?
+      if(this.wasPlaying) {
+        this.play()
+        this.wasPlaying = false
+      }
+      this.resetDrawCanvas()
+    }
+    this.clearAnnotations = () => {
+      // TODO
     }
     this.deleteRecording = (idx) => {
       this.recorder.remove(idx)
