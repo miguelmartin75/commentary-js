@@ -41,6 +41,12 @@ const disableFocusForElement = (el) => {
     el.addEventListener("mousedown", (e) => {
       e.preventDefault()
     });
+    el.addEventListener("keydown", (e) => {
+      e.preventDefault()
+    });
+    el.addEventListener("keyup", (e) => {
+      e.preventDefault()
+    });
 };
 
 const clamp = (val, min, max) => {
