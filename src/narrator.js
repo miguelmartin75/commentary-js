@@ -104,6 +104,7 @@ class Recorder {
     this.currentId = 0
 
     const recordingType = hasVideo ? VIDEO_RECORDING_TYPE : AUDIO_RECORDING_TYPE;
+    this.videoEnabled = hasVideo
 
     if (!MediaRecorder.isTypeSupported(recordingType)) { // <2>
       console.warn(`${recordingType} is not supported`)
@@ -119,7 +120,6 @@ class Recorder {
       let curr = {url: url, blob: blob}
       this.recordings.unshift(curr)
       this.currentBlobs = []
-      console.log(this.newRecordingCb)
       this.newRecordingCb(curr)
       this.currentId += 1
     })
@@ -419,12 +419,11 @@ class Narrator {
     this.draw.removeVideos()
     this.viewVideo = this.draw.addCreateVideo(url, () => {
       this.pause()
+      this.draw.onResize()
     });
     let ctx = this;
     this.viewVideo.container.video.onloadedmetadata = function() {
-      let dur = this.duration;
-      console.log("media duration", dur)
-      ctx.playBar.max = dur;
+      ctx.playBar.max = this.duration;
     };
   }
 
@@ -450,13 +449,13 @@ class Narrator {
   resetDrawCanvas() {
     this.pos = {x: undefined, y: undefined}
     this.draw.clearPaths()
+    this.draw.onResize()
   }
 
   initDrawCanvas() {
     // modified from https://stackoverflow.com/a/30684711
     let ctx = this
     this.resetDrawCanvas()
-    // this.draw.onResize()
     function setDrawPos(e) {
       if(ctx.draw.videos.length == 0) {
         return;
@@ -483,13 +482,15 @@ class Narrator {
     function addPath(e) {
       // mouse left button must be pressed
       if (e.buttons !== 1) return;
+      if(!ctx.isRecording) {
+        return;
+      }
 
       const from = {x: ctx.pos.x, y: ctx.pos.y}
       setDrawPos(e)
       if(!from.x || !from.y) return;
       const to = {x: ctx.pos.x, y: ctx.pos.y}
       const path = {from: from, to: to}
-      console.log("adding path", path)
       ctx.draw.addPath(path)
     }
 
@@ -538,7 +539,7 @@ class Narrator {
     // setup devices
     this.devices = await navigator.mediaDevices.enumerateDevices()
     let micDevice = null
-    let videoDevice = null
+    let videoDevice = "_none"
     for (var idx in this.devices) {
       const dev = this.devices[idx];
       const isDefault = dev.deviceId === "default";
@@ -552,9 +553,6 @@ class Narrator {
         }
       } else if(isVideoInp) {
         this.addVideoDevice(dev, isDefault)
-        if(isDefault) {
-          videoDevice = dev.deviceId
-        }
       }
     }
 
@@ -700,7 +698,9 @@ class Narrator {
         const recording = this.recorder.recordings[idx]
         const path = `${idx}.${RECORDING_EXT}`
         vids.file(path, recording.blob, {type: "blob"})
-        data.push({...recording.data, "path": path})
+        const exportData = {...recording.data, "recording_path": path}
+        console.log("recording.data=", recording.data, exportData)
+        data.push(exportData)
       }
       zip.file("data.json", JSON.stringify(
         data
@@ -738,7 +738,6 @@ class Narrator {
         this.isRecording = false
         this.recordDisabled = true
         this.recordBtn.innerHTML = "Record"
-        this.resetDrawCanvas()
         // TODO: add option?
         this.playDisabled = false
         if(this.wasPlaying) {
@@ -783,7 +782,8 @@ class Narrator {
         let node = document.createElement("li")
         node.innerHTML = `Time: ${this.recordTime} `
 
-        let recNode = document.createElement("video")
+        let tag = this.recorder.videoEnabled ? "video": "audio"
+        let recNode = document.createElement(tag)
         recNode.src = src
         recNode.setAttribute("controls", "controls")
 
@@ -813,8 +813,10 @@ class Narrator {
           // NOTE(miguelmartin): is there a better way to deep copy?
           paths: JSON.parse(JSON.stringify(this.draw.paths)),
         }
+        console.log("endRecording", x.data)
         this.recordTime = null
         this.recordDisabled = false
+        this.resetDrawCanvas()
     }
     this.deleteRecording = (idx) => {
       this.recorder.remove(idx)
@@ -847,15 +849,14 @@ class Narrator {
 
       this.prevScreen = this.activeScreen
       this.activeScreen = screen
-      console.log("active=", this.activeScreen, "prev=", this.prevScreen)
       const a = this.getScreen(this.activeScreen)
       const b = this.getScreen(this.prevScreen)
       show(a)
       hide(b)
-      this.draw.onResize()
       if(this.activeScreen !== MAIN_SCREEN) {
         this.pause()
       }
+      this.draw.onResize()
     }
     this.showPrevScreen = () => {
       console.log("showing previous screen", this.prevScreen, "curr=", this.activeScreen)
@@ -885,7 +886,7 @@ class Narrator {
     this.shortcutsBtn.addEventListener("click", () => { this.toggleScreen(SHORTCUTS_SCREEN) })
     this.settingsBtn.addEventListener("click", () => { this.toggleScreen(SETTINGS_SCREEN) })
 
-    const allButtons = [this.playBtn, this.nextFrameBtn, this.prevFrameBtn, this.recordBtn, this.submitBtn, this.rejectBtn, this.mainMenuBtn, this.shortcutsBtn, this.settingsBtn]
+    const allButtons = [this.playBtn, this.nextFrameBtn, this.prevFrameBtn, this.recordBtn, this.submitBtn, this.rejectBtn, this.mainMenuBtn, this.shortcutsBtn, this.settingsBtn, this.clearStrokeBtn]
     for(const but of allButtons) {
       disableFocusForElement(but)
     }
@@ -895,7 +896,7 @@ class Narrator {
       console.debug("key", e)
       if(e.key === " ") {
         this.togglePlay()
-      } else if (e.key === "r" || e.key == "R") {
+      } else if (e.key === "r" || e.key == "R" || e.key == "Enter") {
         this.toggleRecord()
       } else if(e.key === "?") {
         this.showPrevScreen()
@@ -904,10 +905,14 @@ class Narrator {
       }
     });
     document.addEventListener("keydown", (e) => {
+      if(e.key == " ") {
+        e.preventDefault()
+      }
+
       if (e.key === "." || e.key === "ArrowRight") {
         this.nextFrame()
       } else if (e.key === "," || e.key === "ArrowLeft") {
-        this.nextFrame()
+        this.prevFrame()
       } else if(e.key === "?") {
         this.setScreen(SHORTCUTS_SCREEN)
       }

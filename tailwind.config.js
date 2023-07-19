@@ -1,10 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["index.html"],
-  //purge: {
-  //  enabled: false,
-  //  //content: ["*.html"],
-  //},
+  purge: {
+    enabled: true,
+    content: ["*.html"],
+  },
   theme: {
     extend: {},
   },
