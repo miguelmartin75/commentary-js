@@ -436,6 +436,7 @@ class Narrator {
   }
 
   openVideo(url) {
+    // TODO: check the video name rather than URL
     if(this.viewVideo && url === this.viewVideo.container.url) {
       return;
     }
@@ -453,6 +454,7 @@ class Narrator {
     this.viewVideo.container.video.onloadedmetadata = function() {
       ctx.playBar.max = this.duration;
     };
+    this.updateTimeline()
   }
 
   async setup(canvas) {
@@ -564,9 +566,7 @@ class Narrator {
     this.videoFileInput = document.getElementById("videoFile")
     this.videoFileInput.addEventListener("change", () => {
       // TODO: support multiple files
-      console.log("opened:", this.videoFileInput.files)
       this.openVideo(URL.createObjectURL(this.videoFileInput.files[0]))
-      // this.videoFileInput.files[0]
     }, false);
 
 
@@ -633,7 +633,6 @@ class Narrator {
           })
         }
       ).then(r => r.json()).then(x => {
-        console.log("response", x)
         this.openVideo(x["path"])
         this.setScreen(MAIN_SCREEN)
       })
@@ -733,9 +732,6 @@ class Narrator {
         this.updateTimeline()
       }
     });
-    this.playBar.addEventListener("onchange", (value) => {
-      console.log("value change", value)
-    })
 
     this.addEvent = (x) => {
       this.recordedEvents.push({...x, "time": timeNow()})
@@ -753,7 +749,6 @@ class Narrator {
         const path = `${idx}.${RECORDING_EXT}`
         vids.file(path, recording.blob, {type: "blob"})
         const exportData = {...recording.data, "recording_path": path}
-        console.log("recording.data=", recording.data, exportData)
         data.push(exportData)
       }
       zip.file("data.json", JSON.stringify(
@@ -850,16 +845,14 @@ class Narrator {
       // TODO: log the data here including paths
       let src = x.url
       let node = document.createElement("li")
-      console.log(x)
 
       let timeButton = document.createElement("button")
       let recordTime = this.recordTime;
-      timeButton.innerHTML = `Time: ${this.recordTime} `
+      let dur = (endTime - this.recordStartAppTime) / 1000
+      timeButton.innerHTML = `Time: ${this.recordTime.toFixed(3)} (${dur.toFixed(2)}s)`
       timeButton.className = TIME_BUTTON_CLASSES
       timeButton.addEventListener("click", () => {
-        console.log("timebutton", recordTime)
         if(this.viewVideo) {
-          console.log("seek")
           this.viewVideo.container.video.currentTime = recordTime;
           this.updateTimeline()
         }
@@ -869,10 +862,6 @@ class Narrator {
       let recNode = document.createElement(tag)
       recNode.src = src
       recNode.setAttribute("controls", "controls")
-      console.log("recNode=", recNode)
-      recNode.onloadedmetadata = function() {
-        console.log("dur=", this.duration)
-      }
 
       let delButton = document.createElement("button")
       delButton.innerHTML = "Delete"
