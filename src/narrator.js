@@ -528,8 +528,24 @@ class Narrator {
     }
     this.startAnnotatingBtn.addEventListener("click", () => {
       // TODO
-      fetch('/videos/test_id').then(r => r.json()).then(x => {
+      fetch('/videos/', {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          redirect: "follow",
+          referrerPolicy: "no-referrer",
+          body: JSON.stringify({
+            "category": "todo",
+            "video": "todo",
+          })
+        }
+      ).then(r => r.json()).then(x => {
         console.log("response", x)
+        this.openVideo(x["path"])
       })
     });
 
@@ -694,9 +710,9 @@ class Narrator {
         let node = document.createElement("li")
         node.innerHTML = `Time: ${this.recordTime} `
 
-        let audioNode = document.createElement("video")
-        audioNode.src = src
-        audioNode.setAttribute("controls", "controls")
+        let recNode = document.createElement("video")
+        recNode.src = src
+        recNode.setAttribute("controls", "controls")
 
         let delButton = document.createElement("button")
         delButton.innerHTML = "Delete"
@@ -714,7 +730,7 @@ class Narrator {
         disableFocusForElement(replayButton)
         node.appendChild(delButton)
         node.appendChild(replayButton)
-        node.appendChild(audioNode)
+        node.appendChild(recNode)
 
         audioList.prepend(node);
         x.data = {

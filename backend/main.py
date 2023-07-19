@@ -1,12 +1,16 @@
 import json
 import os
+
+from collections import defaultdict
 from flask import (
     Flask,
     send_file,
     request,
     jsonify,
 )
-import boto3
+
+from backend.presign_utilities import create_presigned_url_from_path
+from backend.egoexo import load_data
 
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 app = Flask(
@@ -17,40 +21,19 @@ app = Flask(
 
 VALID_ACCESS_KEYS = {"temp"}
 
-data = json.load(open("ec_metadata.json"))
+data = load_data()
 
-def generate_presigned_url(s3_path):
-    data = request.get_json()
 
-    s3_path = data.get('s3_path', None)
-    access_key = data.get('access_key', None)
-
-    if not all([s3_path, access_key]):
-        return jsonify({'error': 'Missing data!'}), 400
-
-    if access_key not in VALID_ACCESS_KEYS:
-        return jsonify({'error': 'Invalid access key!'}), 403
-
-    s3_bucket, s3_key = s3_path.split('/', 1)
-
-    try:
-        s3_client = boto3.client('s3')
-        response = s3_client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": s3_bucket, "Key": s3_key},
-            ExpiresIn=3600,
-        )
-    except NoCredentialsError:
-        return jsonify({'error': 'No AWS credentials found!'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-    return jsonify({'presigned_url': response}), 200
-
-@app.route("/videos/<id>")
-def get_video_stream_path(id):
-    print(id)
-    return jsonify({"path": "todo"})
+@app.route("/videos/", methods=["POST"])
+def video_stream_path():
+    data = json.loads(request.data)
+    print("data=", data)
+    cat = data.get("category", None)
+    video = data.get("video", None)
+    print("cat=", cat, "video_id=", video)
+    s3_path = "s3://ego4d-cmu/egoexo/releases/dev/takes/cmu_soccer06_2/ego_preview.mp4"
+    https_path = create_presigned_url_from_path(s3_path)
+    return jsonify({"path": https_path})
 
 
 @app.route("/narrator.js")
