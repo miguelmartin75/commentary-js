@@ -15,6 +15,16 @@ const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibol
 const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
 
+const deepCopy = (x) => {
+  // NOTE(miguelmartin): is there a better way to deep copy?
+  return JSON.parse(JSON.stringify(x))
+}
+
+const timeNow = () => {
+  //return Date.now()
+  return performance.now()
+}
+
 const createOption = (label, value, isSelected, parentNode) => {
   const node = document.createElement("option")
   node.innerHTML = label
@@ -447,20 +457,19 @@ class Narrator {
   }
 
   resetDrawCanvas() {
-    this.pos = {x: undefined, y: undefined}
+    this.pos = {x: undefined, y: undefined, t: undefined}
     this.draw.clearPaths()
     this.draw.onResize()
   }
 
   initDrawCanvas() {
     // modified from https://stackoverflow.com/a/30684711
-    let ctx = this
     this.resetDrawCanvas()
-    function setDrawPos(e) {
-      if(ctx.draw.videos.length == 0) {
+    const setDrawPos = (e) => {
+      if(this.draw.videos.length == 0) {
         return;
       }
-      const vid = ctx.draw.videos[0]
+      const vid = this.draw.videos[0]
       if(!vid.drawData.w) {
         return;
       }
@@ -473,25 +482,40 @@ class Narrator {
       const relY = e.clientY - rect.top;
       const vidX = relX - vidRect.x
       const vidY = relY - vidRect.y
-      ctx.pos.x = clamp(vidX / vidRect.w, 0, 1);
-      ctx.pos.y = clamp(vidY / vidRect.h, 0, 1);
+      this.pos.x = clamp(vidX / vidRect.w, 0, 1);
+      this.pos.y = clamp(vidY / vidRect.h, 0, 1);
+      this.pos.t = timeNow()
     }
-    function clearDrawPos(e) {
-      ctx.pos = {x: undefined, y: undefined}
+    const clearDrawPos = (e) => {
+      this.pos = {x: undefined, y: undefined, t: undefined}
     }
-    function addPath(e) {
+    const addPath = (e) => {
       // mouse left button must be pressed
       if (e.buttons !== 1) return;
-      if(!ctx.isRecording) {
+      if(!this.isRecording) {
         return;
       }
 
-      const from = {x: ctx.pos.x, y: ctx.pos.y}
+      const from = {x: this.pos.x, y: this.pos.y, t: this.pos.t}
       setDrawPos(e)
       if(!from.x || !from.y) return;
-      const to = {x: ctx.pos.x, y: ctx.pos.y}
+      const to = {x: this.pos.x, y: this.pos.y, t: this.pos.t}
       const path = {from: from, to: to}
-      ctx.draw.addPath(path)
+      this.draw.addPath(path)
+    }
+    this.finishStrokes = () => {
+      if(this.isRecording && this.draw.paths.length > 0) {
+        this.addEvent({type: "path", action: null, paths: deepCopy(this.draw.paths)})
+      }
+    }
+
+    this.clearStroke = () => {
+      if(this.isRecording) {
+        this.addEvent({type: "path", action: "clear", paths: deepCopy(this.draw.paths)})
+      }
+      this.pos = {x: undefined, y: undefined, t: undefined}
+      this.draw.clearPaths()
+      this.draw.onResize()
     }
 
     this.canvas.addEventListener("mousemove", addPath);
@@ -499,7 +523,7 @@ class Narrator {
     this.canvas.addEventListener("mousedown", setDrawPos);
     this.canvas.addEventListener("mouseenter", setDrawPos);
     // TODO: when recording save the time when cleared
-    this.clearStrokeBtn.addEventListener("click", () => { this.resetDrawCanvas() });
+    this.clearStrokeBtn.addEventListener("click", this.clearStroke);
   }
 
   updateTimeline() {
@@ -654,8 +678,11 @@ class Narrator {
     this.playDisabled = false
 
     // recorder state
+    this.recordedEvents = []
+    this.isRecording = false
     this.recordDisabled = false
     this.recordTime = null
+    this.recordStartAppTime = null
     this.wasPlaying = false
 
     // annotation submit/reject state
@@ -666,6 +693,12 @@ class Narrator {
     this.playBar.value = 0
     this.playBar.max = undefined
     this.sliderChanging = false;
+    this.playBar.addEventListener("keydown", (e) => {
+      e.preventDefault()
+    })
+    this.playBar.addEventListener("keyup", (e) => {
+      e.preventDefault()
+    })
     this.playBar.addEventListener("mousedown", () => {
       this.sliderChanging = true;
     });
@@ -686,6 +719,9 @@ class Narrator {
       console.log("value change", value)
     })
 
+    this.addEvent = (x) => {
+      this.recordedEvents.push({...x, "time": timeNow()})
+    }
     this.submitAnn = () => {
       // TODO: animation
       if(this.submitting) {
@@ -729,25 +765,23 @@ class Narrator {
 
         this.recorder.start()
         this.isRecording = true
-        this.playDisabled = true
+        // TODO: configuration option?
+        // this.playDisabled = true
+        this.recordStartAppTime = timeNow()
         this.recordTime = this.viewVideo.container.video.currentTime
         this.recordBtn.innerHTML = "Stop Recording"
       } else {
         this.recorder.stop()
         // TODO: set style disabled
-        this.isRecording = false
         this.recordDisabled = true
         this.recordBtn.innerHTML = "Record"
-        // TODO: add option?
-        this.playDisabled = false
-        if(this.wasPlaying) {
-          this.play()
-          this.wasPlaying = false
-        }
       }
     }
     this.pause = () => {
       if(!this.viewVideo || !this.isPlaying) return;
+      if(this.isRecording) {
+        this.addEvent({type: "video", action: "pause", video_time: this.viewVideo.container.currentTime})
+      }
       this.viewVideo.container.pause()
       this.isPlaying = false
       this.playBtn.innerHTML = "Play"
@@ -755,6 +789,9 @@ class Narrator {
     this.play = () => {
       if(this.playDisabled || !this.viewVideo) {
         return;
+      }
+      if(this.isRecording) {
+        this.addEvent({type: "video", action: "play", video_time: this.viewVideo.container.currentTime})
       }
       this.viewVideo.container.play()
       this.isPlaying = true
@@ -769,13 +806,21 @@ class Narrator {
     }
     this.nextFrame = () => {
       this.viewVideo.container.video.currentTime += 1/30.0
+      if(this.isRecording) {
+        this.addEvent({type: "video", action: "next_frame", video_time: this.viewVideo.container.currentTime})
+      }
       this.updateTimeline()
     }
     this.prevFrame = () => {
       this.viewVideo.container.video.currentTime -= 1/30.0
+      if(this.isRecording) {
+        this.addEvent({type: "video", action: "prev_frame", video_time: this.viewVideo.container.currentTime})
+      }
       this.updateTimeline()
     }
     this.endRecording = (x) => {
+        let endTime = timeNow()
+
         // NOTE: actually video
         // TODO: log the data here including paths
         let src = x.url
@@ -799,6 +844,7 @@ class Narrator {
         replayButton.addEventListener("click", (event) => {
           console.log("replay clicked")
         });
+        disableFocusForElement(recNode)
         disableFocusForElement(delButton)
         disableFocusForElement(replayButton)
         node.appendChild(delButton)
@@ -806,16 +852,23 @@ class Narrator {
         node.appendChild(recNode)
 
         audioList.prepend(node);
+        this.finishStrokes()
         x.data = {
-          time: this.recordTime,
-          // TODO: add timing information
-          // paths: {...this.draw.paths},
-          // NOTE(miguelmartin): is there a better way to deep copy?
-          paths: JSON.parse(JSON.stringify(this.draw.paths)),
+          video_time: this.recordTime,
+          start_global_time: this.recordStartAppTime,
+          end_global_time: endTime,
+          events: deepCopy(this.recordedEvents)
         }
-        console.log("endRecording", x.data)
         this.recordTime = null
         this.recordDisabled = false
+        this.recordStartAppTime = null
+        this.recordedEvents = []
+        this.isRecording = false
+        // TODO: add option for whether we want auto-play?
+        if(this.wasPlaying) {
+          this.play()
+          this.wasPlaying = false
+        }
         this.resetDrawCanvas()
     }
     this.deleteRecording = (idx) => {
@@ -902,6 +955,8 @@ class Narrator {
         this.showPrevScreen()
       } else if(e.key === "Escape") {
         this.toggleScreen(SETTINGS_SCREEN, MAIN_SCREEN)
+      } else if(e.key == "c" || e.key == "C") {
+        this.clearStroke()
       }
     });
     document.addEventListener("keydown", (e) => {
