@@ -9,7 +9,7 @@ from iopath.common.s3 import S3PathHandler
 pathmgr = PathManager()  # for downloading files
 pathmgr.register_handler(S3PathHandler(profile="default"))
 
-METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/ec_metadata.json"
+METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/metadata.json"
 
 
 @dataclass
@@ -40,6 +40,7 @@ def to_task_cat(tid):
 
 def load_data():
     data = json.load(pathmgr.open(METADATA_PATH))
+    print(f"Loaded: {len(data)} takes")
     by_task = defaultdict(list)
     by_name = {}
     for x in data:
@@ -51,6 +52,7 @@ def load_data():
         by_task[task_name].append(x)
         assert name not in by_name
         by_name[name] = x
+
     return EgoExoData(
         videos_by_name=by_name,
         videos_by_task=by_task,

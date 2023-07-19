@@ -19,7 +19,7 @@ app = Flask(
 )
 # app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-VALID_ACCESS_KEYS = {"temp"}
+VALID_USER_IDS = {"testuser"}
 
 data = load_data()
 
@@ -34,6 +34,17 @@ def video_stream_path():
     s3_path = "s3://ego4d-cmu/egoexo/releases/dev/takes/cmu_soccer06_2/ego_preview.mp4"
     https_path = create_presigned_url_from_path(s3_path)
     return jsonify({"path": https_path})
+
+
+@app.route("/metadata")
+def metadata():
+    ret = {
+        "by_category": {
+            task_name: [x["take_name"] for x in xs]
+            for task_name, xs in data.videos_by_task.items()
+        }
+    }
+    return jsonify(ret)
 
 
 @app.route("/narrator.js")

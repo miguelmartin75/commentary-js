@@ -14,6 +14,15 @@ const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibol
 const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
 
+const createOption = (label, value, isSelected, parentNode) => {
+  const node = document.createElement("option")
+  node.innerHTML = label
+  node.selected = isSelected;
+  node.value = value
+  if(parentNode) parentNode.appendChild(node);
+  return node;
+};
+
 const disableFocusForElement = (el) => {
     el.addEventListener("mousedown", (e) => {
       e.preventDefault()
@@ -452,8 +461,13 @@ class Narrator {
   }
 
   async initSettings() {
-    // this.openVideo(VIDEO_PATH)
+    this.metadata = {}
+    this.devById = {}
+
+    this.expertiseSelector = document.getElementById("expertise")
+    this.videoSelector = document.getElementById("videoSelect")
     this.startAnnotatingBtn = document.getElementById("startAnnotatingBtn")
+
     this.cameraSelector = document.getElementById("cam")
     this.micSelector = document.getElementById("mic")
     this.settingsPreviewVideo = document.getElementById("settingsPreviewVideo")
@@ -466,22 +480,12 @@ class Narrator {
     }, false);
 
 
-    this.devById = {}
-    const addVideoDevice = (x, idx, isSelected) => {
-      console.log("addVideoDevice(", x, idx, isSelected, ")")
-      let node = document.createElement("option")
-      node.innerHTML = x.label;
-      node.selected = isSelected;
-      node.value = x.deviceId
-      this.cameraSelector.appendChild(node);
+    this.addVideoDevice = (x, isSelected) => {
+      createOption(x.label, x.deviceId, isSelected, this.cameraSelector);
     }
 
-    const addAudioDevice = (x, idx, isSelected) => {
-      let node = document.createElement("option")
-      node.innerHTML = x.label;
-      node.selected = isSelected;
-      node.value = x.deviceId
-      this.micSelector.appendChild(node);
+    this.addAudioDevice = (x, isSelected) => {
+      createOption(x.label, x.deviceId, isSelected, this.micSelector);
     }
 
     // setup devices
@@ -495,26 +499,25 @@ class Narrator {
       const isVideoInp = dev.kind === "videoinput";
       this.devById[dev.deviceId] = dev;
       if(isAudioInp) {
-        addAudioDevice(dev, idx, isDefault)
+        this.addAudioDevice(dev, isDefault)
         if(isDefault) {
           micDevice = dev.deviceId
         }
       } else if(isVideoInp) {
-        addVideoDevice(dev, idx, isDefault)
+        this.addVideoDevice(dev, isDefault)
         if(isDefault) {
           videoDevice = dev.deviceId
         }
       }
     }
-    console.log(micDevice, videoDevice)
 
-    let camOrMicChanged = () => {
+    this.camOrMicChanged = () => {
       const camDevId = this.cameraSelector.value;
       const micDevId = this.micSelector.value;
       this.createRecorder(camDevId, micDevId)
     }
-    this.cameraSelector.addEventListener("change", camOrMicChanged)
-    this.micSelector.addEventListener("change", camOrMicChanged)
+    this.cameraSelector.addEventListener("change", this.camOrMicChanged)
+    this.micSelector.addEventListener("change", this.camOrMicChanged)
 
     this.selectVideoDevice = (deviceId) => {
       for(const opt of this.cameraSelector.options) {
@@ -527,7 +530,6 @@ class Narrator {
       }
     }
     this.startAnnotatingBtn.addEventListener("click", () => {
-      // TODO
       fetch('/videos/', {
           method: "POST",
           mode: "cors",
@@ -546,8 +548,32 @@ class Narrator {
       ).then(r => r.json()).then(x => {
         console.log("response", x)
         this.openVideo(x["path"])
+        this.setScreen(MAIN_SCREEN)
       })
     });
+
+    this.updateVideosForExpertise = () => {
+      this.videoSelector.innerHTML = "";
+      let catName = this.expertiseSelector.value;
+      let names = this.metadata["by_category"][catName];
+      for(let name of names) {
+        createOption(name, name, false, this.videoSelector)
+      }
+    }
+    this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
+    this.videoSelector.addEventListener("change", () => {
+    })
+
+    fetch("/metadata").then(r => r.json()).then(x => {
+      this.metadata = x
+
+      // populate the UI
+      this.expertiseSelector.innerHTML = "";
+      for(let catName in this.metadata["by_category"]) {
+        createOption(catName, catName, false, this.expertiseSelector)
+      }
+      this.updateVideosForExpertise()
+    })
 
     let err = await this.createRecorder(videoDevice, micDevice)
     if(err) return err;
@@ -675,7 +701,7 @@ class Narrator {
       }
     }
     this.pause = () => {
-      if(!this.viewVideo) return;
+      if(!this.viewVideo || !this.isPlaying) return;
       this.viewVideo.container.pause()
       this.isPlaying = false
       this.playBtn.innerHTML = "Play"
@@ -780,6 +806,9 @@ class Narrator {
       show(a)
       hide(b)
       this.draw.onResize()
+      if(this.activeScreen !== MAIN_SCREEN) {
+        this.pause()
+      }
     }
     this.showPrevScreen = () => {
       console.log("showing previous screen", this.prevScreen, "curr=", this.activeScreen)
