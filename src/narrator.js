@@ -4,9 +4,10 @@ const MAIN_SCREEN = 1
 const SETTINGS_SCREEN = 2
 const SHORTCUTS_SCREEN = 3
 const START_SCREEN = SETTINGS_SCREEN
-// const START_SCREEN = MAIN_SCREEN
 
-const VIDEO_PATH = "static/cmu_soccer06_2.mp4"
+const BASE_LINE_WIDTH_PER_1K_PX = 8;
+const MIN_LINE_WIDTH = 3;
+
 const RECORDING_EXT = "webm"
 const VIDEO_RECORDING_TYPE = `video/${RECORDING_EXT}`
 const AUDIO_RECORDING_TYPE = `audio/${RECORDING_EXT}`
@@ -28,6 +29,10 @@ const disableFocusForElement = (el) => {
       e.preventDefault()
     });
 };
+
+const clamp = (val, min, max) => {
+  return Math.min(Math.max(val, min), max)
+}
 
 // ref: https://web.dev/patterns/files/save-a-file/#demo
 const saveFile = async (blob, suggestedName) => {
@@ -146,7 +151,7 @@ class Recorder {
 }
 
 class Video {
-  constructor(video, url, on_play_fail, seek_to) {
+  constructor(video, url, on_play_fail, seek_to, on_ready) {
     // TODO: investigate performance using "timeupdate"
     this.playing = false;
     this.timeupdate = false;
@@ -154,6 +159,7 @@ class Video {
     this.url = url;
     this.seek_to = seek_to;
     this.on_play_fail = on_play_fail
+    this.on_ready = on_ready
 
     this.video = video;
     this.video.playsInline = true;
@@ -171,6 +177,7 @@ class Video {
       } else {
         this.video.currentTime = 0;
       }
+      this.on_ready(this)
     }).catch(err => {
       // do nothing
     });
@@ -193,21 +200,17 @@ class Video {
   }
 }
 
-function resize_canvas(canvas, ctx) {
-  //webglUtils.resizeCanvasToDisplaySize(canvas);
-  // let multiplier = window.devicePixelRatio
+function resizeCanvas(canvas, ctx) {
   let multiplier = 1
   multiplier = multiplier || 1;
   const width  = canvas.clientWidth  * multiplier | 0;
   const height = canvas.clientHeight * multiplier | 0;
-  console.log("canvas w/h=", width, height)
+  const fontSize = Math.round(canvas.height / 10)
   if (canvas.width !== width || canvas.height !== height) {
-    console.log("resize")
     canvas.width  = width;
     canvas.height = height;
     // TODO configure style
     ctx.lineCap = 'round';
-    const fontSize = Math.round(canvas.height / 10)
     ctx.font = `${fontSize}px serif`;
     ctx.strokeStyle = '#c0392b';
     return true;
@@ -224,7 +227,7 @@ class DrawCtx {
   }
 
   onResize() {
-    resize_canvas(this.canvas, this.gl);
+    resizeCanvas(this.canvas, this.gl);
   }
 
   setup(canvas) {
@@ -238,6 +241,9 @@ class DrawCtx {
     window.addEventListener("resize", (event) => {
       if(this.videos.length >= 1) {
         this.onResize();
+        for(const vid of this.videos) {
+          this.updateDrawData(vid)
+        }
       }
     });
 
@@ -246,22 +252,30 @@ class DrawCtx {
     return null;
   }
 
-  add_path(path) {
+  addPath(path) {
     this.paths.push(path)
   }
 
-  clear_paths() {
+  clearPaths() {
     this.paths = []
   }
 
-  add_create_video(url, on_play_fail, seek_to) {
+  addCreateVideo(url, on_play_fail, seek_to) {
     const video_id = this.videos.length;
     const video_el = document.createElement("video");
-    const video = new Video(video_el, url, on_play_fail, seek_to);
+    const video = new Video(
+      video_el,
+      url,
+      on_play_fail,
+      seek_to,
+      () => {
+        this.updateDrawData(ret)
+      }
+    );
 
     let ret = {
       container: video,
-      draw_data: {
+      drawData: {
         x: 0,
         y: 0,
         w: undefined,
@@ -273,21 +287,43 @@ class DrawCtx {
     return ret
   }
 
-  remove_videos() {
+  updateDrawData(video) {
+    const cW = this.canvasWidth();
+    const cH = this.canvasHeight();
+
+    let vW = video.container.video.videoWidth
+    let vH = video.container.video.videoHeight
+    const r = Math.min(cW / vW, cH / vH)
+    vW *= r
+    vH *= r
+
+    let offsetX = 0
+    let offsetY = 0
+    offsetX = cW / 2 - vW / 2
+    offsetY = cH / 2 - vH / 2
+    video.drawData = {
+      x: offsetX,
+      y: offsetY,
+      w: vW,
+      h: vH,
+    }
+  }
+
+  removeVideos() {
     this.videos = []
   }
 
-  canvas_width() {
+  canvasWidth() {
     return this.canvas.clientWidth;
   }
 
-  canvas_height() {
+  canvasHeight() {
     return this.canvas.clientHeight;
   }
 
   renderFrame(dt) {
-    const cW = this.canvas_width();
-    const cH = this.canvas_height();
+    const cW = this.canvasWidth();
+    const cH = this.canvasHeight();
 
     this.gl.clearRect(0, 0, cW, cH);
     // TODO
@@ -298,35 +334,32 @@ class DrawCtx {
     //   this.gl.fillText(text, textX, textY);
     //   return;
     // }
-    for(const {container, draw_data} of this.videos) {
-      // TODO: use draw_data
+    for(const {container, drawData} of this.videos) {
+      // TODO: use drawData
       if(container.is_ready()) {
         const frame = container.video
-        let ar = container.video.videoWidth / container.video.videoHeight
-        let vH = Math.min(container.video.videoHeight, cH)
-        let vW = vH * ar
-        let offsetX = 0
-        let offsetY = 0
-        offsetX = cW / 2 - vW / 2
         this.gl.drawImage(
           frame,
-          offsetX,
-          offsetY,
-          vW,
-          vH
+          drawData.x,
+          drawData.y,
+          drawData.w,
+          drawData.h,
         );
       }
-    }
-    // TODO
-    if(this.paths.length > 0) {
-      this.gl.lineWidth = 5;
-      for(const path of this.paths) {
-        this.gl.beginPath();
-        this.gl.moveTo(path.from.x, path.from.y)
-        this.gl.lineTo(path.to.x, path.to.y)
-        this.gl.stroke(); // draw it!
+      if(this.paths.length > 0) {
+        this.gl.lineWidth = Math.max(
+          BASE_LINE_WIDTH_PER_1K_PX * (Math.min(drawData.w, drawData.h) / 1000),
+          MIN_LINE_WIDTH,
+        )
+        for(const path of this.paths) {
+          this.gl.beginPath();
+          this.gl.moveTo(drawData.x + path.from.x * drawData.w, drawData.y + path.from.y * drawData.h)
+          this.gl.lineTo(drawData.x + path.to.x * drawData.w, drawData.y + path.to.y * drawData.h)
+          this.gl.stroke(); // draw it!
+        }
       }
-
+      // NOTE: assumes len(videos) == 1
+      break;
     }
   }
 }
@@ -383,8 +416,8 @@ class Narrator {
 
   openVideo(url) {
     console.log("Opened:", url)
-    this.draw.remove_videos()
-    this.viewVideo = this.draw.add_create_video(url, () => {
+    this.draw.removeVideos()
+    this.viewVideo = this.draw.addCreateVideo(url, () => {
       this.pause()
     });
     let ctx = this;
@@ -416,7 +449,7 @@ class Narrator {
 
   resetDrawCanvas() {
     this.pos = {x: undefined, y: undefined}
-    this.draw.clear_paths()
+    this.draw.clearPaths()
   }
 
   initDrawCanvas() {
@@ -424,32 +457,46 @@ class Narrator {
     let ctx = this
     this.resetDrawCanvas()
     // this.draw.onResize()
-    function set_draw_pos(e) {
+    function setDrawPos(e) {
+      if(ctx.draw.videos.length == 0) {
+        return;
+      }
+      const vid = ctx.draw.videos[0]
+      if(!vid.drawData.w) {
+        return;
+      }
+
       const target = e.target;
       const rect = target.getBoundingClientRect();
+      const vidRect = vid.drawData
 
-      ctx.pos.x = e.clientX - rect.left;
-      ctx.pos.y = e.clientY - rect.top;
+      const relX = e.clientX - rect.left;
+      const relY = e.clientY - rect.top;
+      const vidX = relX - vidRect.x
+      const vidY = relY - vidRect.y
+      ctx.pos.x = clamp(vidX / vidRect.w, 0, 1);
+      ctx.pos.y = clamp(vidY / vidRect.h, 0, 1);
     }
-    function clear_draw_pos(e) {
+    function clearDrawPos(e) {
       ctx.pos = {x: undefined, y: undefined}
     }
-    function add_path(e) {
+    function addPath(e) {
       // mouse left button must be pressed
       if (e.buttons !== 1) return;
 
       const from = {x: ctx.pos.x, y: ctx.pos.y}
-      set_draw_pos(e)
+      setDrawPos(e)
       if(!from.x || !from.y) return;
       const to = {x: ctx.pos.x, y: ctx.pos.y}
       const path = {from: from, to: to}
-      ctx.draw.add_path(path)
+      console.log("adding path", path)
+      ctx.draw.addPath(path)
     }
 
-    this.canvas.addEventListener("mousemove", add_path);
-    this.canvas.addEventListener("mouseup", clear_draw_pos);
-    this.canvas.addEventListener("mousedown", set_draw_pos);
-    this.canvas.addEventListener("mouseenter", set_draw_pos);
+    this.canvas.addEventListener("mousemove", addPath);
+    this.canvas.addEventListener("mouseup", clearDrawPos);
+    this.canvas.addEventListener("mousedown", setDrawPos);
+    this.canvas.addEventListener("mouseenter", setDrawPos);
     // TODO: when recording save the time when cleared
     this.clearStrokeBtn.addEventListener("click", () => { this.resetDrawCanvas() });
   }
