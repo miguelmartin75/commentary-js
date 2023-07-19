@@ -8,7 +8,8 @@ const START_SCREEN = SETTINGS_SCREEN
 
 const VIDEO_PATH = "static/cmu_soccer06_2.mp4"
 const RECORDING_EXT = "webm"
-const RECORDING_TYPE = `video/${RECORDING_EXT}`
+const VIDEO_RECORDING_TYPE = `video/${RECORDING_EXT}`
+const AUDIO_RECORDING_TYPE = `audio/${RECORDING_EXT}`
 const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
@@ -80,7 +81,7 @@ const show = (el) => {
 
 
 class Recorder {
-  setup(stream, newRecordingCb) {
+  setup(stream, newRecordingCb, hasVideo) {
     if(!stream) {
       return "no stream given"
     }
@@ -88,16 +89,18 @@ class Recorder {
     this.recordings = []
     this.currentId = 0
 
-    if (!MediaRecorder.isTypeSupported(RECORDING_TYPE)) { // <2>
-      console.warn(`${RECORDING_TYPE} is not supported`)
+    const recordingType = hasVideo ? VIDEO_RECORDING_TYPE : AUDIO_RECORDING_TYPE;
+
+    if (!MediaRecorder.isTypeSupported(recordingType)) { // <2>
+      console.warn(`${recordingType} is not supported`)
     }
     this.mediaRecorder = new MediaRecorder(stream, { // <3>
-      mimeType: RECORDING_TYPE
+      mimeType: recordingType
     })
 
     this.newRecordingCb = newRecordingCb 
     this.mediaRecorder.addEventListener('stop', () => {
-      let blob = new Blob(this.currentBlobs, { type: RECORDING_TYPE })
+      let blob = new Blob(this.currentBlobs, { type: recordingType })
       let url = URL.createObjectURL(blob)
       let curr = {url: url, blob: blob}
       this.recordings.unshift(curr)
@@ -324,19 +327,39 @@ class Narrator {
   async createRecorder(videoDevice, micDevice) {
     let err = null 
 
-    const stream = await navigator.mediaDevices.getUserMedia({ // <1>
-      video: {deviceId: videoDevice},
-      audio: {deviceId: micDevice},
-    })
-    console.log("stream=", stream)
-    var tracks = stream.getTracks();
+    if(this.stream) {
+      var tracks = this.stream.getTracks();
+      for(var i = 0; i < tracks.length; i++){
+        tracks[i].stop();
+      }
+    }
+    
+    console.log("videoDevice", videoDevice)
+    let media = { }
+    if(videoDevice !== "_none") {
+      media["video"] = {deviceId: videoDevice}
+    } else {
+      media["video"] = false
+    }
+    if(micDevice !== "_none") {
+      media["audio"] = {deviceId: micDevice}
+    } else {
+      media["audio"] = false
+    }
+    console.log("media=", media)
+
+    this.stream = await navigator.mediaDevices.getUserMedia(media)
+    var tracks = this.stream.getTracks();
     for(var i = 0; i < tracks.length; i++){
-       console.log('track', i, tracks[i].getSettings().deviceId)
+      if(tracks[i].kind === "audio") {
+        this.selectMicDevice(tracks[i].getSettings().deviceId)
+      } else {
+        this.selectVideoDevice(tracks[i].getSettings().deviceId)
+      }
     }
 
-
     this.recorder = new Recorder()
-    err = this.recorder.setup(stream, this._recordingCreated)
+    err = this.recorder.setup(this.stream, this._recordingCreated, media["video"] !== false)
     if(err) {
       return err
     }
@@ -345,8 +368,7 @@ class Narrator {
     }
     this.settingsPreviewVideo.autoplay = true
     this.settingsPreviewVideo.muted = true
-    this.settingsPreviewVideo.srcObject = stream;
-    // this.settingsPreviewVideo.src = URL.createObjectURL(stream);
+    this.settingsPreviewVideo.srcObject = this.stream;
     return err
   }
 
@@ -494,6 +516,16 @@ class Narrator {
     this.cameraSelector.addEventListener("change", camOrMicChanged)
     this.micSelector.addEventListener("change", camOrMicChanged)
 
+    this.selectVideoDevice = (deviceId) => {
+      for(const opt of this.cameraSelector.options) {
+        opt.selected = opt.value === deviceId
+      }
+    }
+    this.selectMicDevice = (deviceId) => {
+      for(const opt of this.micSelector.options) {
+        opt.selected = opt.value === deviceId
+      }
+    }
     this.startAnnotatingBtn.addEventListener("click", () => {
       // TODO
       fetch('/videos/test_id').then(r => r.json()).then(x => {
@@ -573,13 +605,13 @@ class Narrator {
         return;
       }
       var zip = new JSZip();
-      var vids = zip.folder("videos");
+      var vids = zip.folder("recordings");
       let data = []
       for(const idx in this.recorder.recordings) {
         const recording = this.recorder.recordings[idx]
         const path = `${idx}.${RECORDING_EXT}`
         vids.file(path, recording.blob, {type: "blob"})
-        data.push({...recording.data, "video": path})
+        data.push({...recording.data, "path": path})
       }
       zip.file("data.json", JSON.stringify(
         data
