@@ -31,7 +31,8 @@ def video_stream_path():
     cat = data.get("category", None)
     video = data.get("video", None)
     print("cat=", cat, "video_id=", video)
-    s3_path = "s3://ego4d-cmu/egoexo/releases/dev/takes/cmu_soccer06_2/ego_preview.mp4"
+    # s3_path = "s3://ego4d-cmu/egoexo/releases/dev/takes/cmu_soccer06_2/ego_preview.mp4"
+    s3_path = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/example_video.mp4"
     https_path = create_presigned_url_from_path(s3_path)
     return jsonify({"path": https_path})
 

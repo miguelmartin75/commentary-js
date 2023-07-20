@@ -39,7 +39,16 @@ const createOption = (label, value, isSelected, parentNode) => {
   return node;
 };
 
-const disableFocusForElement = (el) => {
+const disableFocusForSlider = (el) => {
+    el.addEventListener("keydown", (e) => {
+      e.preventDefault()
+    })
+    el.addEventListener("keyup", (e) => {
+      e.preventDefault()
+    })
+};
+
+const disableFocusForClickable = (el) => {
     el.addEventListener("mousedown", (e) => {
       e.preventDefault()
     });
@@ -194,7 +203,7 @@ class Video {
 
     this.video = video;
     this.video.playsInline = true;
-    this.video.muted = true; // TODO: configure
+    this.video.muted = false;
     this.video.loop = false;
     this.video.src = url;
 
@@ -678,6 +687,9 @@ class Narrator {
 
   async init() {
     // ui elements
+    this.muteButton = document.getElementById("muteBtn")
+    this.volumeBar = document.getElementById("volumeBar")
+    this.volumeLevel = document.getElementById("volumeLevel")
     this.micSelector = document.getElementById("mic")
     this.recordBtn = document.getElementById("recordBtn")
     this.playBtn = document.getElementById("playBtn")
@@ -716,8 +728,9 @@ class Narrator {
       this.playSpeedSelectors[value].addEventListener("click", () => {
         this.setPlaybackSpeed(value / 100)
       })
-      disableFocusForElement(this.playSpeedSelectors[value])
+      disableFocusForClickable(this.playSpeedSelectors[value])
     }
+    disableFocusForSlider(this.volumeBar)
 
 
     // active screen
@@ -744,12 +757,7 @@ class Narrator {
     this.playBar.value = 0
     this.playBar.max = undefined
     this.sliderChanging = false;
-    this.playBar.addEventListener("keydown", (e) => {
-      e.preventDefault()
-    })
-    this.playBar.addEventListener("keyup", (e) => {
-      e.preventDefault()
-    })
+    disableFocusForSlider(this.playBar)
     this.playBar.addEventListener("mousedown", () => {
       if(this.playDisabled) return;
       this.sliderChanging = true;
@@ -861,6 +869,9 @@ class Narrator {
       if(this.playDisabled || !this.viewVideo) {
         return;
       }
+      if(this.isRecording) {
+        this.mute()
+      }
       const vidCont = this.viewVideo.container.video
       this.addEvent({
         type: "video",
@@ -939,8 +950,8 @@ class Narrator {
         this.recorder.remove(x.id)
         this.audioList.removeChild(node)
       });
-      disableFocusForElement(timeButton)
-      disableFocusForElement(delButton)
+      disableFocusForClickable(timeButton)
+      disableFocusForClickable(delButton)
       node.appendChild(timeButton)
       node.appendChild(delButton)
 
@@ -951,7 +962,7 @@ class Narrator {
         replayButton.addEventListener("click", () => {
           console.log("replay clicked")
         });
-        disableFocusForElement(replayButton)
+        disableFocusForClickable(replayButton)
         node.appendChild(replayButton)
       }
 
@@ -959,7 +970,7 @@ class Narrator {
       let recNode = document.createElement(tag)
       recNode.src = src
       recNode.setAttribute("controls", "controls")
-      disableFocusForElement(recNode)
+      disableFocusForClickable(recNode)
       node.appendChild(recNode)
 
       audioList.prepend(node);
@@ -1043,7 +1054,26 @@ class Narrator {
         }
       }
     }
-    // TODO: add delete
+    this.mute = () => {
+      const vidCont = this.viewVideo.container.video
+      vidCont.muted = true;
+      this.muteButton.innerHTML = "Unmute";
+    }
+    this.unmute = () => {
+      const vidCont = this.viewVideo.container.video
+      vidCont.muted = false;
+      this.muteButton.innerHTML = "Mute";
+    }
+    this.toggleMute = () => {
+      const vidCont = this.viewVideo.container.video
+      vidCont.muted = !vidCont.muted;
+      this.muteButton.innerHTML = vidCont.muted ? "Unmute" : "Mute";
+    }
+    this.setVolume = (vol) => {
+      const vidCont = this.viewVideo.container.video
+      vidCont.volume = vol / 100
+      this.volumeLevel.innerHTML = `${vol}%`
+    }
     this.playBtn.addEventListener("click", this.togglePlay)
     this.nextFrameBtn.addEventListener("click", this.nextFrame);
     this.prevFrameBtn.addEventListener("click", this.prevFrame);
@@ -1053,10 +1083,14 @@ class Narrator {
     this.mainMenuBtn.addEventListener("click", () => { this.setScreen(MAIN_SCREEN) })
     this.shortcutsBtn.addEventListener("click", () => { this.toggleScreen(SHORTCUTS_SCREEN) })
     this.settingsBtn.addEventListener("click", () => { this.toggleScreen(SETTINGS_SCREEN) })
+    this.muteButton.addEventListener("click", this.toggleMute)
+    this.volumeBar.addEventListener("change", (e) => {
+      this.setVolume(this.volumeBar.value)
+    })
 
-    const allButtons = [this.playBtn, this.nextFrameBtn, this.prevFrameBtn, this.recordBtn, this.submitBtn, this.rejectBtn, this.mainMenuBtn, this.shortcutsBtn, this.settingsBtn, this.clearStrokeBtn]
+    const allButtons = [this.playBtn, this.nextFrameBtn, this.prevFrameBtn, this.recordBtn, this.submitBtn, this.rejectBtn, this.mainMenuBtn, this.shortcutsBtn, this.settingsBtn, this.clearStrokeBtn, this.muteButton]
     for(const but of allButtons) {
-      disableFocusForElement(but)
+      disableFocusForClickable(but)
     }
 
     // shortcuts
