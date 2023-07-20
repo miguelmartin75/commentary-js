@@ -1,5 +1,9 @@
 "use strict";
 
+const ENABLE_REPLAY = true;
+const ENABLE_AUTOPLAY = true;
+
+const NONE_STR = "_none"
 const MAIN_SCREEN = 1
 const SETTINGS_SCREEN = 2
 const SHORTCUTS_SCREEN = 3
@@ -14,11 +18,11 @@ const AUDIO_RECORDING_TYPE = `audio/${RECORDING_EXT}; codec=aac`
 const TIME_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+const INVALID_TEXT_CLASS = "border-red-500"
+const VALID_TEXT_CLASS = "border-green-500"
+const ENABLE_BUTTON_CLASSES = "bg-blue-500 hover:bg-blue-700"
+const DISABLE_BUTTON_CLASSES = "bg-gray-500 hover:none"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
-
-// const ENABLE_REPLAY = false;
-const ENABLE_REPLAY = true;
-const ENABLE_AUTOPLAY = true;
 
 const deepCopy = (x) => {
   // NOTE(miguelmartin): is there a better way to deep copy?
@@ -245,7 +249,8 @@ function resizeCanvas(canvas, ctx) {
   multiplier = multiplier || 1;
   const width  = canvas.clientWidth  * multiplier | 0;
   const height = canvas.clientHeight * multiplier | 0;
-  const fontSize = Math.round(canvas.height / 10)
+  const fontSize = Math.round(canvas.clientHeight / 20)
+  // const fontSize = 48
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width  = width;
     canvas.height = height;
@@ -366,14 +371,13 @@ class DrawCtx {
     const cH = this.canvasHeight();
 
     this.gl.clearRect(0, 0, cW, cH);
-    // TODO
-    // if(!this.enableVideo) {
-    //   const textX = cW / 4;
-    //   const textY = cH / 2;
-    //   const text = "Open Settings (press ESC)";
-    //   this.gl.fillText(text, textX, textY);
-    //   return;
-    // }
+    if(this.videos.length === 0) {
+      const textX = cW / 4;
+      const textY = cH / 2;
+      const text = "Open Settings to start annotating (press ESC)";
+      this.gl.fillText(text, textX, textY);
+      return;
+    }
     for(const {container, drawData} of this.videos) {
       // TODO: use drawData
       if(container.is_ready()) {
@@ -416,12 +420,12 @@ class Narrator {
     }
     
     let media = { }
-    if(videoDevice !== "_none") {
+    if(videoDevice !== NONE_STR) {
       media["video"] = {deviceId: videoDevice}
     } else {
       media["video"] = false
     }
-    if(micDevice !== "_none") {
+    if(micDevice !== NONE_STR) {
       media["audio"] = {deviceId: micDevice}
     } else {
       media["audio"] = false
@@ -571,6 +575,7 @@ class Narrator {
     this.metadata = {}
     this.devById = {}
 
+    this.userId = document.getElementById("username")
     this.expertiseSelector = document.getElementById("expertise")
     this.videoSelector = document.getElementById("videoSelect")
     this.startAnnotatingBtn = document.getElementById("startAnnotatingBtn")
@@ -632,6 +637,12 @@ class Narrator {
       }
     }
     this.startAnnotatingBtn.addEventListener("click", () => {
+      if(this.videoSelector.value === NONE_STR) {
+        alert("Please select a video")
+        return;
+      }
+      console.log(this.videoSelector.value)
+
       fetch('/videos/', {
           method: "POST",
           mode: "cors",
@@ -643,26 +654,32 @@ class Narrator {
           redirect: "follow",
           referrerPolicy: "no-referrer",
           body: JSON.stringify({
-            "category": "todo",
-            "video": "todo",
+            "video_name": this.videoSelector.value
           })
         }
       ).then(r => r.json()).then(x => {
+        if(!x["path"]) {
+          alert(`Could not load video '${this.videoSelector.value}'\nPlease report this the workplace group.`)
+          return;
+        }
         this.openVideo(x["path"])
         this.setScreen(MAIN_SCREEN)
       })
     });
 
+    // this.categories = {}
     this.updateVideosForExpertise = () => {
       this.videoSelector.innerHTML = "";
       let catName = this.expertiseSelector.value;
       let names = this.metadata["by_category"][catName];
+      createOption("None", "_none", true, this.videoSelector)
       for(let name of names) {
         createOption(name, name, false, this.videoSelector)
       }
     }
     this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
     this.videoSelector.addEventListener("change", () => {
+      console.log(this.videoSelector.value) 
     })
 
     fetch("/metadata").then(r => r.json()).then(x => {
@@ -675,6 +692,28 @@ class Narrator {
       }
       this.updateVideosForExpertise()
     })
+
+    this.userId.addEventListener("input", () => {
+      const value = deepCopy(this.userId.value)
+      if(value.length === 0) {
+        this.userId.classList.remove(VALID_TEXT_CLASS)
+        this.userId.classList.add(INVALID_TEXT_CLASS)
+        return;
+      }
+      fetch(`/check_user/${value}`).then(r => r.json()).then(x => {
+        if(!x["valid"]) {
+          this.userId.classList.remove(VALID_TEXT_CLASS)
+          this.userId.classList.add(INVALID_TEXT_CLASS)
+        } else {
+          this.userId.classList.remove(INVALID_TEXT_CLASS)
+          this.userId.classList.add(VALID_TEXT_CLASS)
+          console.log("assigning", x, x["category"])
+          this.expertiseSelector.value = x["category"]
+          this.updateVideosForExpertise()
+        }
+      })
+    })
+
 
     let err = await this.createRecorder(videoDevice, micDevice)
     if(err) return err;
@@ -823,7 +862,6 @@ class Narrator {
       ))
       this.submitting = true;
       zip.generateAsync({type: "blob"}).then((content) => {
-        // TODO: if(local)
         saveFile(content, "annotations.zip");
         this.submitting = false
       });
@@ -898,6 +936,7 @@ class Narrator {
       }
 
       const vidCont = this.getVideoContainer()
+      if(!vidCont) return;
       vidCont.currentTime += 1/30.0
       this.addEvent({
         type: "video",
@@ -914,6 +953,7 @@ class Narrator {
         return;
       }
       const vidCont = this.getVideoContainer()
+      if(!vidCont) return;
       vidCont.currentTime -= 1/30.0
       this.addEvent({
         type: "video",

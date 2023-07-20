@@ -17,23 +17,29 @@ app = Flask(
     __name__,
     static_folder=os.path.join(REPO_DIR, "static"),
 )
-# app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-VALID_USER_IDS = {"testuser"}
+app_data = load_data()
 
-data = load_data()
+@app.route("/check_user/<userid>")
+def check_user(userid):
+    ret = {
+        "valid": userid in app_data.users,
+        "category": app_data.users.get(userid, None),
+    }
+    return jsonify(ret)
 
 
 @app.route("/videos/", methods=["POST"])
 def video_stream_path():
     data = json.loads(request.data)
-    print("data=", data)
-    cat = data.get("category", None)
-    video = data.get("video", None)
-    print("cat=", cat, "video_id=", video)
-    # s3_path = "s3://ego4d-cmu/egoexo/releases/dev/takes/cmu_soccer06_2/ego_preview.mp4"
-    s3_path = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/example_video.mp4"
-    https_path = create_presigned_url_from_path(s3_path)
+    video_name = data.get("video_name", None)
+    print("video_name=", video_name)
+    take = app_data.videos_by_name.get(video_name, None)
+    https_path = None
+    if take is not None:
+        print("take=", take)
+        s3_path = take["s3_path"]
+        https_path = create_presigned_url_from_path(s3_path)
     return jsonify({"path": https_path})
 
 
@@ -42,7 +48,7 @@ def metadata():
     ret = {
         "by_category": {
             task_name: [x["take_name"] for x in xs]
-            for task_name, xs in data.videos_by_task.items()
+            for task_name, xs in app_data.videos_by_task.items()
         }
     }
     return jsonify(ret)
