@@ -16,7 +16,9 @@ const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibol
 const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
 const FPS = 30; // TODO: use mp4jsbox to get frame rate?
 
-const ENABLE_REPLAY = false;
+// const ENABLE_REPLAY = false;
+const ENABLE_REPLAY = true;
+const ENABLE_AUTOPLAY = true;
 
 const deepCopy = (x) => {
   // NOTE(miguelmartin): is there a better way to deep copy?
@@ -124,7 +126,7 @@ class Recorder {
 
   constructor() {
     this.currentBlobs = []
-    this.recordings = []
+    this.recordingsById = {}
     this.currentId = 0
   }
 
@@ -144,13 +146,14 @@ class Recorder {
 
     this.newRecordingCb = newRecordingCb 
     this.mediaRecorder.addEventListener('stop', () => {
-      let blob = new Blob(this.currentBlobs, { type: recordingType })
-      let url = URL.createObjectURL(blob)
-      let curr = {url: url, blob: blob}
-      this.recordings.unshift(curr)
+      const blob = new Blob(this.currentBlobs, { type: recordingType })
+      const url = URL.createObjectURL(blob)
+      const curr = {url: url, blob: blob, id: this.currentId}
+      this.recordingsById[this.currentId] = curr
       this.currentBlobs = []
-      this.newRecordingCb(curr)
       this.currentId += 1
+
+      this.newRecordingCb(curr)
     })
 
     this.mediaRecorder.addEventListener('dataavailable', event => {
@@ -159,14 +162,13 @@ class Recorder {
     return null;
   }
 
+  clearRecordings() {
+    this.recordingsById = {}
+  }
+
   remove(id) {
-    for(var idx in this.recordings) {
-      var x = this.recordings[idx]
-      if(x.id == id) {
-        this.recordings.splice(idx, 1)
-        break
-      }
-    }
+    console.log("removing", id, this.recordingsById.length)
+    delete this.recordingsById[id]
   }
 
   start() {
@@ -458,7 +460,7 @@ class Narrator {
     });
     let ctx = this;
     this.viewVideo.container.video.onloadedmetadata = function() {
-      ctx.playBar.max = this.duration;
+      ctx.playBar.max = this.duration * 1000;
     };
     this.updateTimeline()
   }
@@ -530,15 +532,13 @@ class Narrator {
       this.draw.addPath(path)
     }
     this.finishStrokes = () => {
-      if(this.isRecording && this.draw.paths.length > 0) {
+      if(this.draw.paths.length > 0) {
         this.addEvent({type: "path", action: null, paths: deepCopy(this.draw.paths)})
       }
     }
 
     this.clearStroke = () => {
-      if(this.isRecording) {
-        this.addEvent({type: "path", action: "clear", paths: deepCopy(this.draw.paths)})
-      }
+      this.addEvent({type: "path", action: "clear", paths: deepCopy(this.draw.paths)})
       this.pos = {x: undefined, y: undefined, t: undefined}
       this.draw.clearPaths()
       this.draw.onResize()
@@ -553,7 +553,7 @@ class Narrator {
   }
 
   updateTimeline() {
-    this.playBar.value = this.viewVideo.container.video.currentTime
+    this.playBar.value = this.viewVideo.container.video.currentTime * 1000
     this.timeInfo.innerHTML = `${this.viewVideo.container.video.currentTime}`
     this.frameInfo.innerHTML = `${Math.floor(this.viewVideo.container.video.currentTime * FPS)}`
   }
@@ -671,6 +671,11 @@ class Narrator {
     if(err) return err;
   }
 
+  getVideoContainer() {
+    if(!this.viewVideo) return null;
+    return this.viewVideo.container.video
+  }
+
   async init() {
     // ui elements
     this.micSelector = document.getElementById("mic")
@@ -691,6 +696,29 @@ class Narrator {
     this.mainScreen = document.getElementById("mainScreen")
     this.shortcutsScreen = document.getElementById("shortcutsScreen")
     this.settingsScreen = document.getElementById("settingsScreen")
+    this.playSpeedSelectors = {}
+    for(const name of [
+      "speedSelect25x",
+      "speedSelect50x",
+      "speedSelect75x",
+      "speedSelect100x",
+      "speedSelect125x",
+      "speedSelect150x",
+      "speedSelect175x",
+      "speedSelect200x",
+      "speedSelect300x",
+      "speedSelect400x",
+    ]) {
+      let value = name.substring(11)
+      value = value.substring(0, value.length - 1)
+      value = parseInt(value)
+      this.playSpeedSelectors[value] = document.getElementById(name)
+      this.playSpeedSelectors[value].addEventListener("click", () => {
+        this.setPlaybackSpeed(value / 100)
+      })
+      disableFocusForElement(this.playSpeedSelectors[value])
+    }
+
 
     // active screen
     this.prevScreen = undefined
@@ -723,24 +751,35 @@ class Narrator {
       e.preventDefault()
     })
     this.playBar.addEventListener("mousedown", () => {
+      if(this.playDisabled) return;
       this.sliderChanging = true;
     });
     this.playBar.addEventListener("mouseup", () => {
+      if(this.playDisabled) return;
       this.sliderChanging = false;
       if(this.viewVideo) {
-        this.viewVideo.container.video.currentTime = this.playBar.value;
+        this.viewVideo.container.video.currentTime = this.playBar.value / 1000;
         this.updateTimeline()
       }
     });
     this.playBar.addEventListener("mousemove", () => {
+      if(this.playDisabled) return;
       if(this.sliderChanging && this.viewVideo) {
-        this.viewVideo.container.video.currentTime = this.playBar.value;
+        this.viewVideo.container.video.currentTime = this.playBar.value / 1000;
         this.updateTimeline()
       }
     });
 
+    this.setPlaybackSpeed = (speed) => {
+      if(this.viewVideo) {
+        this.viewVideo.container.video.playbackRate = speed;
+        this.addEvent({type: "video", action: "playback_speed", value: speed, is_playing: this.isPlaying, "video_time": this.viewVideo.container.video.currentTime})
+      }
+    }
     this.addEvent = (x) => {
-      this.recordedEvents.push({...x, "time": timeNow()})
+      if(this.isRecording) {
+        this.recordedEvents.push({...x, "time": timeNow()})
+      }
     }
     this.submitAnn = () => {
       // TODO: animation
@@ -750,8 +789,22 @@ class Narrator {
       var zip = new JSZip();
       var vids = zip.folder("recordings");
       let data = []
-      for(const idx in this.recorder.recordings) {
-        const recording = this.recorder.recordings[idx]
+      let recordings = []
+      for(const recId in this.recorder.recordingsById) {
+        recordings.push(this.recorder.recordingsById[recId])
+      }
+      for(const rec of recordings) {
+        console.log(rec.data.start_global_time, rec.id)
+      }
+
+      recordings.sort((a, b) => {
+        return a.id - b.id
+      })
+      for(const rec of recordings) {
+        console.log(rec.data.start_global_time, rec.id)
+      }
+      for(const idx in recordings) {
+        const recording = recordings[idx]
         const path = `${idx}.${RECORDING_EXT}`
         vids.file(path, recording.blob, {type: "blob"})
         const exportData = {...recording.data, "recording_path": path}
@@ -799,9 +852,7 @@ class Narrator {
     }
     this.pause = () => {
       if(!this.viewVideo || !this.isPlaying) return;
-      if(this.isRecording) {
-        this.addEvent({type: "video", action: "pause", video_time: this.viewVideo.container.currentTime})
-      }
+      this.addEvent({type: "video", action: "pause", video_time: this.viewVideo.container.currentTime})
       this.viewVideo.container.pause()
       this.isPlaying = false
       this.playBtn.innerHTML = "Play"
@@ -810,9 +861,15 @@ class Narrator {
       if(this.playDisabled || !this.viewVideo) {
         return;
       }
-      if(this.isRecording) {
-        this.addEvent({type: "video", action: "play", video_time: this.viewVideo.container.currentTime})
-      }
+      const vidCont = this.viewVideo.container.video
+      this.addEvent({
+        type: "video",
+        action: "play",
+        video_time: vidCont.currentTime,
+        playback_speed: vidCont.playbackRate,
+        muted: vidCont.muted,
+        volume: vidCont.volume,
+      })
       this.viewVideo.container.play()
       this.isPlaying = true
       this.playBtn.innerHTML = "Pause"
@@ -828,27 +885,38 @@ class Narrator {
       if(!ENABLE_REPLAY && this.isRecording) {
         return;
       }
-      this.viewVideo.container.video.currentTime += 1/30.0
-      if(this.isRecording) {
-        this.addEvent({type: "video", action: "next_frame", video_time: this.viewVideo.container.currentTime})
-      }
+
+      const vidCont = this.getVideoContainer()
+      vidCont.currentTime += 1/30.0
+      this.addEvent({
+        type: "video",
+        action: "next_frame",
+        video_time: vidCont.currentTime,
+        playback_speed: vidCont.playbackRate,
+        muted: vidCont.muted,
+        volume: vidCont.volume,
+      })
       this.updateTimeline()
     }
     this.prevFrame = () => {
       if(!ENABLE_REPLAY && this.isRecording) {
         return;
       }
-      this.viewVideo.container.video.currentTime -= 1/30.0
-      if(this.isRecording) {
-        this.addEvent({type: "video", action: "prev_frame", video_time: this.viewVideo.container.currentTime})
-      }
+      const vidCont = this.getVideoContainer()
+      vidCont.currentTime -= 1/30.0
+      this.addEvent({
+        type: "video",
+        action: "prev_frame",
+        video_time: vidCont.currentTime,
+        playback_speed: vidCont.playbackRate,
+        muted: vidCont.muted,
+        volume: vidCont.volume,
+      })
       this.updateTimeline()
     }
     this.endRecording = (x) => {
       let endTime = timeNow()
 
-      // NOTE: actually video
-      // TODO: log the data here including paths
       let src = x.url
       let node = document.createElement("li")
 
@@ -864,23 +932,17 @@ class Narrator {
         }
       });
 
-      let tag = this.recorder.videoEnabled ? "video": "audio"
-      let recNode = document.createElement(tag)
-      recNode.src = src
-      recNode.setAttribute("controls", "controls")
-
       let delButton = document.createElement("button")
       delButton.innerHTML = "Delete"
       delButton.className = DELETE_BUTTON_CLASSES
       delButton.addEventListener("click", (e) => {
-        console.log("delete clicked", e)
+        this.recorder.remove(x.id)
+        this.audioList.removeChild(node)
       });
       disableFocusForElement(timeButton)
-      disableFocusForElement(recNode)
       disableFocusForElement(delButton)
       node.appendChild(timeButton)
       node.appendChild(delButton)
-      node.appendChild(recNode)
 
       if(ENABLE_REPLAY) {
         let replayButton = document.createElement("button")
@@ -893,13 +955,22 @@ class Narrator {
         node.appendChild(replayButton)
       }
 
+      let tag = this.recorder.videoEnabled ? "video": "audio"
+      let recNode = document.createElement(tag)
+      recNode.src = src
+      recNode.setAttribute("controls", "controls")
+      disableFocusForElement(recNode)
+      node.appendChild(recNode)
+
       audioList.prepend(node);
       this.finishStrokes()
       x.data = {
+        id: x.id,
         video_time: this.recordTime,
         start_global_time: this.recordStartAppTime,
         end_global_time: endTime,
-        events: deepCopy(this.recordedEvents)
+        events: deepCopy(this.recordedEvents),
+        duration_approx: dur,
       }
       this.recordTime = null
       this.recordDisabled = false
@@ -908,17 +979,15 @@ class Narrator {
       this.isRecording = false
       this.playDisabled = false
       // TODO: add option for whether we want auto-play?
-      if(this.wasPlaying) {
+      if(this.wasPlaying && ENABLE_AUTOPLAY) {
         this.play()
         this.wasPlaying = false
       }
       this.resetDrawCanvas()
     }
     this.clearAnnotations = () => {
-      // TODO
-    }
-    this.deleteRecording = (idx) => {
-      this.recorder.remove(idx)
+      this.recorder.clearRecordings()
+      this.audioList.innerHTML = ""
     }
     this.getScreen = (screen_id) => {
       if(!screen_id) {
@@ -992,7 +1061,6 @@ class Narrator {
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
-      console.debug("key", e)
       if(e.key === " ") {
         this.togglePlay()
       } else if (e.key === "r" || e.key == "R" || e.key == "Enter") {

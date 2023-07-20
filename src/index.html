@@ -167,10 +167,11 @@
         <div id="mainScreen" class="flex h-screen overflow-hidden hidden">
             <main class='flex-grow p-6 overflow-hidden max-h-screen'> 
 
-                <div class="w-full max-w-full h-5/6 grow-0 m-auto">
+                <!--<div class="w-full max-w-full h-5/6 grow-0 m-auto">-->
+                <div class="w-full max-w-full max-h-fit grow m-auto h-[80%]">
                     <canvas id="glcanvas" class="min-h-full"> </canvas>
                 </div>
-                <div class="w-full flex-col content-center grow-0 min-h-max max-h-full h-1/6">
+                <div class="w-full flex-col content-center grow-0 h-[20%]">
                     <div class="flex w-full">
                         <button id="prevFrameBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2">Prev Frame</button>
                         <button id="playBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
@@ -182,6 +183,50 @@
                         <div class="flex-0 px-4">Time: <span id="timeInfo">0</span> s</div>
                         <div class="flex-0 px-4">Frame (approx.): <span id="frameInfo">0</span></div>
                     </div>
+                    <div class="flex my-2">
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect25x" type="radio" value=".25" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect25x" class="ml-2 text-sm font-medium text-gray-900">0.25x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect50x" type="radio" value=".5" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect50x" class="ml-2 text-sm font-medium text-gray-900">0.5x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect75x" type="radio" value=".75" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect75x" class="ml-2 text-sm font-medium text-gray-900">0.75x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input checked id="speedSelect100x" type="radio" value="1" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect100x" class="ml-2 text-sm font-medium text-gray-900">1x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect125x" type="radio" value="1.25" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect125x" class="ml-2 text-sm font-medium text-gray-900">1.25x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect150x" type="radio" value="1.5" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect150x" class="ml-2 text-sm font-medium text-gray-900">1.5x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect175x" type="radio" value="1.75" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect175x" class="ml-2 text-sm font-medium text-gray-900">1.75x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect200x" type="radio" value="2" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect200x" class="ml-2 text-sm font-medium text-gray-900">2x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect300x" type="radio" value="3" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect300x" class="ml-2 text-sm font-medium text-gray-900">3x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect400x" type="radio" value="4" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect400x" class="ml-2 text-sm font-medium text-gray-900">4x</label>
+                        </div>
+                    </div>
+
+
                     <input class="w-full" type="range" min="1" max="100" value="0" class="slider" id="playBar">
                 </div>
             </main>
