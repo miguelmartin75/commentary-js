@@ -432,14 +432,19 @@ class Narrator {
     }
 
     this.recordDisabled = true
-    this.stream = await navigator.mediaDevices.getUserMedia(media)
-    var tracks = this.stream.getTracks();
-    for(var i = 0; i < tracks.length; i++){
-      if(tracks[i].kind === "audio") {
-        this.selectMicDevice(tracks[i].getSettings().deviceId)
-      } else {
-        this.selectVideoDevice(tracks[i].getSettings().deviceId)
+    this.stream = null
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia(media)
+      var tracks = this.stream.getTracks();
+      for(var i = 0; i < tracks.length; i++){
+        if(tracks[i].kind === "audio") {
+          this.selectMicDevice(tracks[i].getSettings().deviceId)
+        } else {
+          this.selectVideoDevice(tracks[i].getSettings().deviceId)
+        }
       }
+    } catch(e) {
+      console.error(e)
     }
 
     err = this.recorder.setup(this.stream, this._recordingCreated, media["video"] !== false)
@@ -599,23 +604,28 @@ class Narrator {
     }
 
     // setup devices
-    this.devices = await navigator.mediaDevices.enumerateDevices()
+    this.devices = []
     let micDevice = null
     let videoDevice = "_none"
-    for (var idx in this.devices) {
-      const dev = this.devices[idx];
-      const isDefault = dev.deviceId === "default";
-      const isAudioInp = dev.kind === "audioinput";
-      const isVideoInp = dev.kind === "videoinput";
-      this.devById[dev.deviceId] = dev;
-      if(isAudioInp) {
-        this.addAudioDevice(dev, isDefault)
-        if(isDefault) {
-          micDevice = dev.deviceId
+    try {
+      this.devices = await navigator.mediaDevices.enumerateDevices()
+      for (var idx in this.devices) {
+        const dev = this.devices[idx];
+        const isDefault = dev.deviceId === "default";
+        const isAudioInp = dev.kind === "audioinput";
+        const isVideoInp = dev.kind === "videoinput";
+        this.devById[dev.deviceId] = dev;
+        if(isAudioInp) {
+          this.addAudioDevice(dev, isDefault)
+          if(isDefault) {
+            micDevice = dev.deviceId
+          }
+        } else if(isVideoInp) {
+          this.addVideoDevice(dev, isDefault)
         }
-      } else if(isVideoInp) {
-        this.addVideoDevice(dev, isDefault)
       }
+    } catch(e) {
+      console.error(e)
     }
 
     this.camOrMicChanged = () => {
