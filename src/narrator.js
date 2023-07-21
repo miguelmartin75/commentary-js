@@ -186,11 +186,15 @@ class Recorder {
 
   start() {
     // TODO: catch errors
-    this.mediaRecorder.start()
+    if(this.mediaRecorder) {
+      this.mediaRecorder.start()
+    }
   }
 
   stop() {
-    this.mediaRecorder.stop()
+    if(this.mediaRecorder) {
+      this.mediaRecorder.stop()
+    }
   }
 }
 
