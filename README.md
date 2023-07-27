@@ -15,7 +15,7 @@ server:
 ```
 conda create -n narrator_js python=3.11 -y
 conda activate narrator_js
-pip install flask
+pip install flask boto3 iopath
 ```
 
 ## run

@@ -1,4 +1,4 @@
-bind = "0.0.0.0:443"
+bind = "0.0.0.0:3333"
 # workers = 12 # prod
 workers = 1 # local
 worker_class = "gevent"

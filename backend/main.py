@@ -32,14 +32,18 @@ def check_user(userid):
 @app.route("/videos/", methods=["POST"])
 def video_stream_path():
     data = json.loads(request.data)
-    video_name = data.get("video_name", None)
-    print("video_name=", video_name)
-    take = app_data.videos_by_name.get(video_name, None)
-    https_path = None
-    if take is not None:
-        print("take=", take)
-        s3_path = take["s3_path"]
-        https_path = create_presigned_url_from_path(s3_path)
+    userid = data.get("userid", None)
+    if userid is None or userid not in app_data.users:
+        https_path = None
+    else:
+        video_name = data.get("video_name", None)
+        print("video_name=", video_name)
+        take = app_data.videos_by_name.get(video_name, None)
+        https_path = None
+        if take is not None:
+            print("take=", take)
+            s3_path = take["s3_path"]
+            https_path = create_presigned_url_from_path(s3_path)
     return jsonify({"path": https_path})
 
 
@@ -68,4 +72,4 @@ def index(id):
 
 
 if __name__ == "__main__":
-    app.run(port=3333, debug=False, host="0.0.0.0")
+    app.run()
