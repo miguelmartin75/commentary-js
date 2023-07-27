@@ -1,3 +1,4 @@
+import time
 import json
 import os
 
@@ -12,6 +13,9 @@ from flask import (
 from backend.presign_utilities import create_presigned_url_from_path
 from backend.egoexo import load_data
 
+S3_EXPIRATION_SEC = 28800
+# S3_EXPIRATION_SEC = 100
+CACHE_SEC_THRESHOLD = S3_EXPIRATION_SEC // 2
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 app = Flask(
     __name__,
@@ -19,6 +23,7 @@ app = Flask(
 )
 
 app_data = load_data()
+video_stream_cache = {}
 
 @app.route("/videos/<userid>")
 def videos(userid):
@@ -41,16 +46,33 @@ def video_stream_path():
     userid = data.get("userid", None)
     if userid is None or userid not in app_data.users:
         https_path = None
+        return jsonify({"path": https_path})
     else:
         video_name = data.get("video_name", None)
+        key = (userid, video_name)
+        t_now = time.time()
+        if key in video_stream_cache:
+            print("using cache", key)
+            t_delta = t_now -video_stream_cache[key]["time"]
+            if abs(t_delta) < CACHE_SEC_THRESHOLD:
+                return video_stream_cache[key]["result"]
+            
+
         print("video_name=", video_name)
         take = app_data.videos_by_name.get(video_name, None)
         https_path = None
         if take is not None:
             print("take=", take)
             s3_path = take["s3_path"]
-            https_path = create_presigned_url_from_path(s3_path)
-    return jsonify({"path": https_path})
+            https_path = create_presigned_url_from_path(s3_path, expiration=S3_EXPIRATION_SEC)
+        result = jsonify({"path": https_path})
+        print("putting into", key)
+        video_stream_cache[key] = {
+            "result": result,
+            "time": t_now,
+        }
+        return result
+
 
 
 @app.route("/narrator.js")

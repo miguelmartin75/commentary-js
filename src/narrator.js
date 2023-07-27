@@ -231,23 +231,35 @@ class Video {
       }
       this.on_ready(this)
     }).catch(err => {
-      // do nothing
+      console.error(err)
     });
   }
 
   play() {
-    this.video.play(() => {
-      this.playing = true;
-    }).catch(err => {
-      this.on_play_fail(err)
+    if(!this.ready) {
+      console.debug("Video.play: video not ready")
+      return;
+    }
+    this.video.play().catch(err => {
+      this.on_play_fail({"error": err, "action": "play"})
     });
   }
 
   pause() {
-    this.video.pause();
+    if(!this.ready) {
+      console.debug("Video.pause: video not ready")
+      return;
+    }
+    this.video.pause()
   }
 
-  is_ready() {
+  isPlaying() {
+    // https://stackoverflow.com/a/6877530
+    const video = this.video
+    return !!(video.currentTime > 0 && !video.paused && !video.ended && video.readyState > 2);
+  }
+
+  isReady() {
     return this.ready;
   }
 }
@@ -388,7 +400,7 @@ class DrawCtx {
     }
     for(const {container, drawData} of this.videos) {
       // TODO: use drawData
-      if(container.is_ready()) {
+      if(container.isReady()) {
         const frame = container.video
         this.gl.drawImage(
           frame,
@@ -646,10 +658,10 @@ class Narrator {
             }
           }
           if(!found) {
-            console.log("could not find name:", name)
+            alert(`Could not find name: ${name}. Please report to the workplace group: ${this.userId}`)
             this.videoIdx = -1;
           }
-          this.videoSelector.selectedIdx = this.videoIdx + 1;
+          this.videoSelector.selectedIndex = this.videoIdx + 1;
           this.videoName = name;
           this.updateVideoNameLabel()
           this.setScreen(MAIN_SCREEN)
@@ -664,7 +676,7 @@ class Narrator {
       if(!this.checkIfCanOpenNewVideo()) {
         return false;
       }
-      console.log("Opened:", url, name)
+      this.pause()
       this.videoName = name
       this.hasSubmitted = false
       this.recorder.stop()
@@ -746,7 +758,7 @@ class Narrator {
       }
     }
     this.nextVideoBtn.addEventListener("click", this.nextVideo)
-    // this.prevVideoBtn.addEventListener("click", this.prevVideo)
+    this.prevVideoBtn.addEventListener("click", this.prevVideo)
     this.startAnnotatingBtn.addEventListener("click", () => {
       if(!this.userIdValid) {
         alert("Please enter your user id")
@@ -791,6 +803,9 @@ class Narrator {
           this.userIdValid = false
           this.userId.classList.remove(VALID_TEXT_CLASS)
           this.userId.classList.add(INVALID_TEXT_CLASS)
+          this.expertiseSelector.innerHTML = "";
+          this.videoSelector.innerHTML = "";
+          this.videoName = null
         } else {
           this.userIdValid = true
           this.userId.classList.remove(INVALID_TEXT_CLASS)
@@ -813,8 +828,17 @@ class Narrator {
   }
 
   getVideoContainer() {
-    if(!this.viewVideo) return null;
+    if(!this.viewVideo) {
+      return null;
+    }
     return this.viewVideo.container.video
+  }
+
+  isPlaying() {
+    if(!this.viewVideo) {
+      return false;
+    }
+    return this.viewVideo.container.isPlaying()
   }
 
   async init() {
@@ -870,7 +894,7 @@ class Narrator {
     this.activeScreen = START_SCREEN
 
     // player state
-    this.isPlaying = false
+    // this.isPlaying = false
     this.playDisabled = false
 
     // recorder state
@@ -914,7 +938,7 @@ class Narrator {
     this.setPlaybackSpeed = (speed) => {
       if(this.viewVideo) {
         this.viewVideo.container.video.playbackRate = speed;
-        this.addEvent({type: "video", action: "playback_speed", value: speed, is_playing: this.isPlaying, "video_time": this.viewVideo.container.video.currentTime})
+        this.addEvent({type: "video", action: "playback_speed", value: speed, is_playing: this.isPlaying(), "video_time": this.viewVideo.container.video.currentTime})
       }
     }
     this.addEvent = (x) => {
@@ -976,7 +1000,7 @@ class Narrator {
         return;
       }
       if(!this.isRecording) {
-        if(this.isPlaying) {
+        if(this.isPlaying()) {
           this.pause()
           this.wasPlaying = true
         } else {
@@ -999,10 +1023,9 @@ class Narrator {
       }
     }
     this.pause = () => {
-      if(!this.viewVideo || !this.isPlaying) return;
+      if(!this.isPlaying()) return;
       this.addEvent({type: "video", action: "pause", video_time: this.viewVideo.container.currentTime})
       this.viewVideo.container.pause()
-      this.isPlaying = false
       this.playBtn.innerHTML = "Play"
     }
     this.play = () => {
@@ -1022,11 +1045,10 @@ class Narrator {
         volume: vidCont.volume,
       })
       this.viewVideo.container.play()
-      this.isPlaying = true
       this.playBtn.innerHTML = "Pause"
     }
     this.togglePlay = () => {
-      if(this.isPlaying) {
+      if(this.isPlaying()) {
         this.pause()
       } else {
         this.play()
@@ -1285,7 +1307,7 @@ class Narrator {
 
       if(ctx.activeScreen == MAIN_SCREEN) {
         ctx.draw.renderFrame(dt);
-        if(!ctx.sliderChanging && ctx.isPlaying) {
+        if(!ctx.sliderChanging && ctx.isPlaying()) {
           ctx.updateTimeline()
         }
       }
