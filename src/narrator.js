@@ -590,7 +590,7 @@ class Narrator {
     this.videoIdx = 0
 
     this.checkIfCanOpenNewVideo = () => {
-      console.log("checking", this.hasSubmitted, this.viewVideo, this.recorder.recordingsById.length > 0, this.recorder.recordingsById.length)
+      console.log("checking", this.hasSubmitted, this.viewVideo, this.recorder.hasRecordings())
       console.log(this.recorder.recordingsById)
       if(!this.hasSubmitted && this.viewVideo && this.recorder.hasRecordings()) {
         alert("Please Finish before you move onto another video")
@@ -609,10 +609,10 @@ class Narrator {
     }
 
     this.openVideoByName = (name) => {
-      console.log("opening", name)
       if(!this.checkIfCanOpenNewVideo()) {
         return false;
       }
+      console.log("opening", name)
 
       fetch('/videos/', {
           method: "POST",
@@ -649,7 +649,7 @@ class Narrator {
             console.log("could not find name:", name)
             this.videoIdx = -1;
           }
-          this.videoSelector.selectedIdx = this.videoIdx;
+          this.videoSelector.selectedIdx = this.videoIdx + 1;
           this.videoName = name;
           this.updateVideoNameLabel()
           this.setScreen(MAIN_SCREEN)
@@ -686,7 +686,6 @@ class Narrator {
 
     this.nextVideo = () => {
       let idx = (this.videoIdx + 1) % this.videosToAnnotate.length
-      console.log("nextVideo", this.videosToAnnotate, idx, this.videoIdx)
       this.openVideoByName(this.videosToAnnotate[idx])
     }
 
@@ -764,8 +763,8 @@ class Narrator {
     // this.categories = {}
     this.updateVideosForExpertise = () => {
       this.videoSelector.innerHTML = "";
-      let catName = this.expertiseSelector.value;
-      let names = this.metadata["by_category"][catName];
+      let catName = this.metadata["category"]
+      let names = this.metadata["videos_by_category"][catName];
       this.videosToAnnotate = []
       createOption("None", "_none", true, this.videoSelector)
       for(let name of names) {
@@ -778,17 +777,6 @@ class Narrator {
       console.log(this.videoSelector.value) 
     })
 
-    fetch("/metadata").then(r => r.json()).then(x => {
-      this.metadata = x
-
-      // populate the UI
-      this.expertiseSelector.innerHTML = "";
-      for(let catName in this.metadata["by_category"]) {
-        createOption(catName, catName, false, this.expertiseSelector)
-      }
-      this.updateVideosForExpertise()
-    })
-
     this.userId.addEventListener("input", () => {
       const value = deepCopy(this.userId.value)
       if(value.length === 0) {
@@ -797,7 +785,8 @@ class Narrator {
         this.userId.classList.add(INVALID_TEXT_CLASS)
         return;
       }
-      fetch(`/check_user/${value}`).then(r => r.json()).then(x => {
+      fetch(`/videos/${value}`).then(r => r.json()).then(x => {
+        this.metadata = x
         if(!x["valid"]) {
           this.userIdValid = false
           this.userId.classList.remove(VALID_TEXT_CLASS)
@@ -807,7 +796,12 @@ class Narrator {
           this.userId.classList.remove(INVALID_TEXT_CLASS)
           this.userId.classList.add(VALID_TEXT_CLASS)
           console.log("assigning", x, x["category"])
-          this.expertiseSelector.value = x["category"]
+
+          // populate the UI
+          this.expertiseSelector.innerHTML = "";
+          const catName = x["category"]
+          createOption(catName, catName, false, this.expertiseSelector)
+          this.expertiseSelector.value = catName
           this.updateVideosForExpertise()
         }
       })
@@ -929,7 +923,6 @@ class Narrator {
       }
     }
     this.submitAnn = () => {
-      // TODO: animation
       if(this.submitting) {
         return;
       }
@@ -957,13 +950,22 @@ class Narrator {
         const exportData = {...recording.data, "recording_path": path}
         data.push(exportData)
       }
+      const dt = new Date()
+      const exportData = {
+        "user_id": this.userId.value,
+        "video_name": this.videoName,
+        "datetime": dt.toUTCString(),
+        "ds": dt.getTime(),
+        "annotations": data,
+      }
       zip.file("data.json", JSON.stringify(
-        data
+        exportData
       ))
       this.submitting = true;
       zip.generateAsync({type: "blob"}).then((content) => {
-        saveFile(content, "annotations.zip");
+        saveFile(content, `${this.userId.value}_${this.videoName}.zip`);
         this.submitting = false
+        this.hasSubmitted = true
       });
     }
     this.rejectAnn = () => {
@@ -1066,7 +1068,6 @@ class Narrator {
       this.updateTimeline()
     }
     this.endRecording = (x) => {
-      this.hasSubmitted = false
 
       let endTime = timeNow()
       let src = x.url
@@ -1130,7 +1131,7 @@ class Narrator {
       this.recordedEvents = []
       this.isRecording = false
       this.playDisabled = false
-      this.hasSubmitted = true
+      this.hasSubmitted = false
       // TODO: add option for whether we want auto-play?
       if(this.wasPlaying && ENABLE_AUTOPLAY) {
         this.play()
@@ -1249,6 +1250,10 @@ class Narrator {
         this.clearStroke()
       } else if(e.key === "m" || e.key === "M") {
         this.toggleMute()
+      } else if(e.key === "n" || e.key === "N") {
+        this.nextVideo()
+      } else if(e.key === "p" || e.key === "P") {
+        this.prevVideo()
       }
     });
     document.addEventListener("keydown", (e) => {

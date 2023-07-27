@@ -20,11 +20,17 @@ app = Flask(
 
 app_data = load_data()
 
-@app.route("/check_user/<userid>")
-def check_user(userid):
+@app.route("/videos/<userid>")
+def videos(userid):
+    user_cat = app_data.users.get(userid, None)
     ret = {
         "valid": userid in app_data.users,
-        "category": app_data.users.get(userid, None),
+        "category": user_cat,
+        "videos_by_category": {
+            task_name: [x["take_name"] for x in xs]
+            for task_name, xs in app_data.videos_by_task.items()
+            if task_name == user_cat
+        }
     }
     return jsonify(ret)
 
@@ -47,21 +53,9 @@ def video_stream_path():
     return jsonify({"path": https_path})
 
 
-@app.route("/metadata")
-def metadata():
-    ret = {
-        "by_category": {
-            task_name: [x["take_name"] for x in xs]
-            for task_name, xs in app_data.videos_by_task.items()
-        }
-    }
-    return jsonify(ret)
-
-
 @app.route("/narrator.js")
 def main_src():
     return send_file(os.path.join(REPO_DIR, "src/narrator.js"))
-
 
 # @cross_origin()
 # @compress.compressed()
