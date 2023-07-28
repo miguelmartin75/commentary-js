@@ -1,6 +1,6 @@
 "use strict";
 
-const ENABLE_REPLAY = true;
+const ENABLE_REPLAY = false;
 const ENABLE_AUTOPLAY = true;
 
 const NONE_STR = "_none"
@@ -13,11 +13,12 @@ const BASE_LINE_WIDTH_PER_1K_PX = 8;
 const MIN_LINE_WIDTH = 3;
 
 const RECORDING_EXT = "webm"
+const RECORDING_BORDER_CLASSES = "border-red-700";
 const VIDEO_RECORDING_TYPE = `video/${RECORDING_EXT}; codec="h264,aac"`
 const AUDIO_RECORDING_TYPE = `audio/${RECORDING_EXT}; codec=aac`
-const TIME_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
-const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
-const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+const TIME_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 bg-gray-100"
+const DELETE_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 bg-gray-100"
+const REPLAY_ANN_BUTTON_CLASSES = "m-1 px-4 py-1 text-sm text-white-600 font-semibold rounded-full border border-white-600 hover:text-black hover:bg-black-600 hover:border-black-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 bg-gray-100"
 const INVALID_TEXT_CLASS = "border-red-500"
 const VALID_TEXT_CLASS = "border-green-500"
 const ENABLE_BUTTON_CLASSES = "bg-blue-500 hover:bg-blue-700"
@@ -184,7 +185,6 @@ class Recorder {
   }
 
   remove(id) {
-    console.log("removing", id, this.recordingsById.length)
     delete this.recordingsById[id]
   }
 
@@ -594,6 +594,12 @@ class Narrator {
       this.openVideo(URL.createObjectURL(this.videoFileInput.files[0]))
     }, false);
 
+    // disable focus
+    const allButtons = [this.nextVideoBtn, this.prevVideoBtn, this.startAnnotatingBtn]
+    for(const but of allButtons) {
+      disableFocusForClickable(but)
+    }
+
     this.metadata = {}
     this.devById = {}
     this.videoName = null
@@ -602,8 +608,6 @@ class Narrator {
     this.videoIdx = 0
 
     this.checkIfCanOpenNewVideo = () => {
-      console.log("checking", this.hasSubmitted, this.viewVideo, this.recorder.hasRecordings())
-      console.log(this.recorder.recordingsById)
       if(!this.hasSubmitted && this.viewVideo && this.recorder.hasRecordings()) {
         alert("Please Finish before you move onto another video")
         return false;
@@ -612,7 +616,6 @@ class Narrator {
     }
     this.updateVideoNameLabel = () => {
       if(this.videosToAnnotate.length > 0) {
-        console.log("videoIdx=", this.videoIdx)
         this.videoNameLabel.innerHTML = `${this.videoName} (${this.videoIdx + 1} / ${this.videosToAnnotate.length})`
       } else {
         this.videoNameLabel.innerHTML = "No Video Open"
@@ -624,7 +627,6 @@ class Narrator {
       if(!this.checkIfCanOpenNewVideo()) {
         return false;
       }
-      console.log("opening", name)
 
       fetch('/videos/', {
           method: "POST",
@@ -647,10 +649,8 @@ class Narrator {
           return;
         }
         if(this.openVideo(x["path"], name)) {
-          console.log(this.videoSelector)
           let found = false;
           for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
-            console.log(idx, this.videosToAnnotate[idx], name)
             if(this.videosToAnnotate[idx] == name) {
               found = true;
               this.videoIdx = idx;
@@ -785,9 +785,6 @@ class Narrator {
       }
     }
     this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
-    this.videoSelector.addEventListener("change", () => {
-      console.log(this.videoSelector.value) 
-    })
 
     this.userId.addEventListener("input", () => {
       const value = deepCopy(this.userId.value)
@@ -810,7 +807,6 @@ class Narrator {
           this.userIdValid = true
           this.userId.classList.remove(INVALID_TEXT_CLASS)
           this.userId.classList.add(VALID_TEXT_CLASS)
-          console.log("assigning", x, x["category"])
 
           // populate the UI
           this.expertiseSelector.innerHTML = "";
@@ -843,6 +839,7 @@ class Narrator {
 
   async init() {
     // ui elements
+    this.recordSideBar = document.getElementById("recordSideBar")
     this.muteButton = document.getElementById("muteBtn")
     this.volumeBar = document.getElementById("volumeBar")
     this.volumeLevel = document.getElementById("volumeLevel")
@@ -894,7 +891,6 @@ class Narrator {
     this.activeScreen = START_SCREEN
 
     // player state
-    // this.isPlaying = false
     this.playDisabled = false
 
     // recorder state
@@ -943,7 +939,7 @@ class Narrator {
     }
     this.addEvent = (x) => {
       if(this.isRecording) {
-        this.recordedEvents.push({...x, "time": timeNow()})
+        this.recordedEvents.push({...x, "global_time": timeNow()})
       }
     }
     this.submitAnn = () => {
@@ -957,16 +953,10 @@ class Narrator {
       for(const recId in this.recorder.recordingsById) {
         recordings.push(this.recorder.recordingsById[recId])
       }
-      for(const rec of recordings) {
-        console.log(rec.data.start_global_time, rec.id)
-      }
 
       recordings.sort((a, b) => {
         return a.id - b.id
       })
-      for(const rec of recordings) {
-        console.log(rec.data.start_global_time, rec.id)
-      }
       for(const idx in recordings) {
         const recording = recordings[idx]
         const path = `${idx}.${RECORDING_EXT}`
@@ -1011,6 +1001,9 @@ class Narrator {
         this.isRecording = true
         this.recordStartAppTime = timeNow()
         this.recordTime = this.viewVideo.container.video.currentTime
+        for(const clazz of RECORDING_BORDER_CLASSES.split(" ")) {
+          this.recordSideBar.classList.add(clazz)
+        }
         this.recordBtn.innerHTML = "Stop Recording"
         if(!ENABLE_REPLAY) {
           this.playDisabled = true
@@ -1020,6 +1013,9 @@ class Narrator {
         // TODO: set style disabled
         this.recordDisabled = true
         this.recordBtn.innerHTML = "Record"
+        for(const clazz of RECORDING_BORDER_CLASSES.split(" ")) {
+          this.recordSideBar.classList.remove(clazz)
+        }
       }
     }
     this.pause = () => {
@@ -1116,6 +1112,9 @@ class Narrator {
       });
       disableFocusForClickable(timeButton)
       disableFocusForClickable(delButton)
+      let split = document.createElement("hr")
+      split.className = "w-full h-px my-2 bg-gray-400 border-0"
+      node.appendChild(split)
       node.appendChild(timeButton)
       node.appendChild(delButton)
 
@@ -1124,6 +1123,7 @@ class Narrator {
         replayButton.innerHTML = "Replay"
         replayButton.className = REPLAY_ANN_BUTTON_CLASSES
         replayButton.addEventListener("click", () => {
+          // TODO: replay
           console.log("replay clicked")
         });
         disableFocusForClickable(replayButton)
@@ -1140,7 +1140,6 @@ class Narrator {
       audioList.prepend(node);
       this.finishStrokes()
       x.data = {
-        id: x.id,
         video_time: this.recordTime,
         start_global_time: this.recordStartAppTime,
         end_global_time: endTime,
@@ -1187,7 +1186,6 @@ class Narrator {
         return;
       }
       if(this.activeScreen === screen) {
-        console.log("active is same", this.activeScreen, screen)
         return;
       }
 
@@ -1203,12 +1201,10 @@ class Narrator {
       this.draw.onResize()
     }
     this.showPrevScreen = () => {
-      console.log("showing previous screen", this.prevScreen, "curr=", this.activeScreen)
       this.setScreen(this.prevScreen)
     }
     this.toggleScreen = (screen_id, other_screen) => {
       if(this.activeScreen !== screen_id) {
-        console.log("setting", screen_id, this.activeScreen, this.activeScreen === screen_id)
         this.setScreen(screen_id)
       } else {
         if(other_screen) {
