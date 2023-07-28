@@ -143,6 +143,10 @@ class Recorder {
     this.currentId = 0
   }
 
+  hasRecordings() {
+    return Object.keys(this.recordingsById).length > 0
+  }
+
   setup(stream, newRecordingCb, hasVideo) {
     if(!stream) {
       return "no stream given"
@@ -227,23 +231,35 @@ class Video {
       }
       this.on_ready(this)
     }).catch(err => {
-      // do nothing
+      console.error(err)
     });
   }
 
   play() {
-    this.video.play(() => {
-      this.playing = true;
-    }).catch(err => {
-      this.on_play_fail(err)
+    if(!this.ready) {
+      console.debug("Video.play: video not ready")
+      return;
+    }
+    this.video.play().catch(err => {
+      this.on_play_fail({"error": err, "action": "play"})
     });
   }
 
   pause() {
-    this.video.pause();
+    if(!this.ready) {
+      console.debug("Video.pause: video not ready")
+      return;
+    }
+    this.video.pause()
   }
 
-  is_ready() {
+  isPlaying() {
+    // https://stackoverflow.com/a/6877530
+    const video = this.video
+    return !!(video.currentTime > 0 && !video.paused && !video.ended && video.readyState > 2);
+  }
+
+  isReady() {
     return this.ready;
   }
 }
@@ -384,7 +400,7 @@ class DrawCtx {
     }
     for(const {container, drawData} of this.videos) {
       // TODO: use drawData
-      if(container.is_ready()) {
+      if(container.isReady()) {
         const frame = container.video
         this.gl.drawImage(
           frame,
@@ -465,27 +481,6 @@ class Narrator {
     return err
   }
 
-  openVideo(url) {
-    // TODO: check the video name rather than URL
-    if(this.viewVideo && url === this.viewVideo.container.url) {
-      return;
-    }
-    console.log("Opened:", url)
-    this.recorder.stop()
-    this.clearAnnotations()
-    this.clearStroke()
-    this.draw.removeVideos()
-
-    this.viewVideo = this.draw.addCreateVideo(url, () => {
-      this.pause()
-      this.draw.onResize()
-    });
-    let ctx = this;
-    this.viewVideo.container.video.onloadedmetadata = function() {
-      ctx.playBar.max = this.duration * 1000;
-    };
-    this.updateTimeline()
-  }
 
   async setup(canvas) {
     this.recorder = new Recorder()
@@ -581,13 +576,14 @@ class Narrator {
   }
 
   async initSettings() {
-    this.metadata = {}
-    this.devById = {}
 
     this.userId = document.getElementById("username")
     this.expertiseSelector = document.getElementById("expertise")
     this.videoSelector = document.getElementById("videoSelect")
     this.startAnnotatingBtn = document.getElementById("startAnnotatingBtn")
+    this.nextVideoBtn = document.getElementById("nextVideoBtn")
+    this.prevVideoBtn = document.getElementById("prevVideoBtn")
+    this.videoNameLabel = document.getElementById("videoNameLabel")
 
     this.cameraSelector = document.getElementById("cam")
     this.micSelector = document.getElementById("mic")
@@ -598,6 +594,117 @@ class Narrator {
       this.openVideo(URL.createObjectURL(this.videoFileInput.files[0]))
     }, false);
 
+    this.metadata = {}
+    this.devById = {}
+    this.videoName = null
+    this.userIdValid = false
+    this.videosToAnnotate = []
+    this.videoIdx = 0
+
+    this.checkIfCanOpenNewVideo = () => {
+      console.log("checking", this.hasSubmitted, this.viewVideo, this.recorder.hasRecordings())
+      console.log(this.recorder.recordingsById)
+      if(!this.hasSubmitted && this.viewVideo && this.recorder.hasRecordings()) {
+        alert("Please Finish before you move onto another video")
+        return false;
+      }
+      return true;
+    }
+    this.updateVideoNameLabel = () => {
+      if(this.videosToAnnotate.length > 0) {
+        console.log("videoIdx=", this.videoIdx)
+        this.videoNameLabel.innerHTML = `${this.videoName} (${this.videoIdx + 1} / ${this.videosToAnnotate.length})`
+      } else {
+        this.videoNameLabel.innerHTML = "No Video Open"
+
+      }
+    }
+
+    this.openVideoByName = (name) => {
+      if(!this.checkIfCanOpenNewVideo()) {
+        return false;
+      }
+      console.log("opening", name)
+
+      fetch('/videos/', {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          redirect: "follow",
+          referrerPolicy: "no-referrer",
+          body: JSON.stringify({
+            "video_name": name,
+            "userid": this.userId.value,
+          })
+        }
+      ).then(r => r.json()).then(x => {
+        if(!x["path"]) {
+          alert(`Could not load video '${this.videoSelector.value}'\nPlease report this the workplace group.`)
+          return;
+        }
+        if(this.openVideo(x["path"], name)) {
+          console.log(this.videoSelector)
+          let found = false;
+          for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
+            console.log(idx, this.videosToAnnotate[idx], name)
+            if(this.videosToAnnotate[idx] == name) {
+              found = true;
+              this.videoIdx = idx;
+              break;
+            }
+          }
+          if(!found) {
+            alert(`Could not find name: ${name}. Please report to the workplace group: ${this.userId}`)
+            this.videoIdx = -1;
+          }
+          this.videoSelector.selectedIndex = this.videoIdx + 1;
+          this.videoName = name;
+          this.updateVideoNameLabel()
+          this.setScreen(MAIN_SCREEN)
+        }
+      })
+    }
+
+    this.openVideo = (url, name) => {
+      if(this.viewVideo && name === this.videoName) {
+        return false;
+      }
+      if(!this.checkIfCanOpenNewVideo()) {
+        return false;
+      }
+      this.pause()
+      this.videoName = name
+      this.hasSubmitted = false
+      this.recorder.stop()
+      this.clearAnnotations()
+      this.clearStroke()
+      this.draw.removeVideos()
+
+      this.viewVideo = this.draw.addCreateVideo(url, () => {
+        this.pause()
+        this.draw.onResize()
+      });
+      let ctx = this;
+      this.viewVideo.container.video.onloadedmetadata = function() {
+        ctx.playBar.max = this.duration * 1000;
+      };
+      this.updateTimeline()
+      return true;
+    }
+
+    this.nextVideo = () => {
+      let idx = (this.videoIdx + 1) % this.videosToAnnotate.length
+      this.openVideoByName(this.videosToAnnotate[idx])
+    }
+
+    this.prevVideo = () => {
+      let idx = (this.videoIdx - 1) % this.videosToAnnotate.length
+      this.openVideoByName(this.videosToAnnotate[idx])
+    }
 
     this.addVideoDevice = (x, isSelected) => {
       createOption(x.label, x.deviceId, isSelected, this.cameraSelector);
@@ -650,45 +757,31 @@ class Narrator {
         opt.selected = opt.value === deviceId
       }
     }
+    this.nextVideoBtn.addEventListener("click", this.nextVideo)
+    this.prevVideoBtn.addEventListener("click", this.prevVideo)
     this.startAnnotatingBtn.addEventListener("click", () => {
+      if(!this.userIdValid) {
+        alert("Please enter your user id")
+        return;
+      }
       if(this.videoSelector.value === NONE_STR) {
         alert("Please select a video")
         return;
       }
-      console.log(this.videoSelector.value)
 
-      fetch('/videos/', {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          redirect: "follow",
-          referrerPolicy: "no-referrer",
-          body: JSON.stringify({
-            "video_name": this.videoSelector.value
-          })
-        }
-      ).then(r => r.json()).then(x => {
-        if(!x["path"]) {
-          alert(`Could not load video '${this.videoSelector.value}'\nPlease report this the workplace group.`)
-          return;
-        }
-        this.openVideo(x["path"])
-        this.setScreen(MAIN_SCREEN)
-      })
+      this.openVideoByName(this.videoSelector.value)
     });
 
     // this.categories = {}
     this.updateVideosForExpertise = () => {
       this.videoSelector.innerHTML = "";
-      let catName = this.expertiseSelector.value;
-      let names = this.metadata["by_category"][catName];
+      let catName = this.metadata["category"]
+      let names = this.metadata["videos_by_category"][catName];
+      this.videosToAnnotate = []
       createOption("None", "_none", true, this.videoSelector)
       for(let name of names) {
         createOption(name, name, false, this.videoSelector)
+        this.videosToAnnotate.push(name)
       }
     }
     this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
@@ -696,33 +789,34 @@ class Narrator {
       console.log(this.videoSelector.value) 
     })
 
-    fetch("/metadata").then(r => r.json()).then(x => {
-      this.metadata = x
-
-      // populate the UI
-      this.expertiseSelector.innerHTML = "";
-      for(let catName in this.metadata["by_category"]) {
-        createOption(catName, catName, false, this.expertiseSelector)
-      }
-      this.updateVideosForExpertise()
-    })
-
     this.userId.addEventListener("input", () => {
       const value = deepCopy(this.userId.value)
       if(value.length === 0) {
+        this.userIdValid = false
         this.userId.classList.remove(VALID_TEXT_CLASS)
         this.userId.classList.add(INVALID_TEXT_CLASS)
         return;
       }
-      fetch(`/check_user/${value}`).then(r => r.json()).then(x => {
+      fetch(`/videos/${value}`).then(r => r.json()).then(x => {
+        this.metadata = x
         if(!x["valid"]) {
+          this.userIdValid = false
           this.userId.classList.remove(VALID_TEXT_CLASS)
           this.userId.classList.add(INVALID_TEXT_CLASS)
+          this.expertiseSelector.innerHTML = "";
+          this.videoSelector.innerHTML = "";
+          this.videoName = null
         } else {
+          this.userIdValid = true
           this.userId.classList.remove(INVALID_TEXT_CLASS)
           this.userId.classList.add(VALID_TEXT_CLASS)
           console.log("assigning", x, x["category"])
-          this.expertiseSelector.value = x["category"]
+
+          // populate the UI
+          this.expertiseSelector.innerHTML = "";
+          const catName = x["category"]
+          createOption(catName, catName, false, this.expertiseSelector)
+          this.expertiseSelector.value = catName
           this.updateVideosForExpertise()
         }
       })
@@ -734,8 +828,17 @@ class Narrator {
   }
 
   getVideoContainer() {
-    if(!this.viewVideo) return null;
+    if(!this.viewVideo) {
+      return null;
+    }
     return this.viewVideo.container.video
+  }
+
+  isPlaying() {
+    if(!this.viewVideo) {
+      return false;
+    }
+    return this.viewVideo.container.isPlaying()
   }
 
   async init() {
@@ -791,7 +894,7 @@ class Narrator {
     this.activeScreen = START_SCREEN
 
     // player state
-    this.isPlaying = false
+    // this.isPlaying = false
     this.playDisabled = false
 
     // recorder state
@@ -804,6 +907,7 @@ class Narrator {
 
     // annotation submit/reject state
     this.submitting = false
+    this.hasSubmitted = false
 
     // simple state machine for slider, ref https://stackoverflow.com/a/61568207
     this.playBar.min = 0
@@ -834,7 +938,7 @@ class Narrator {
     this.setPlaybackSpeed = (speed) => {
       if(this.viewVideo) {
         this.viewVideo.container.video.playbackRate = speed;
-        this.addEvent({type: "video", action: "playback_speed", value: speed, is_playing: this.isPlaying, "video_time": this.viewVideo.container.video.currentTime})
+        this.addEvent({type: "video", action: "playback_speed", value: speed, is_playing: this.isPlaying(), "video_time": this.viewVideo.container.video.currentTime})
       }
     }
     this.addEvent = (x) => {
@@ -843,7 +947,6 @@ class Narrator {
       }
     }
     this.submitAnn = () => {
-      // TODO: animation
       if(this.submitting) {
         return;
       }
@@ -871,13 +974,22 @@ class Narrator {
         const exportData = {...recording.data, "recording_path": path}
         data.push(exportData)
       }
+      const dt = new Date()
+      const exportData = {
+        "user_id": this.userId.value,
+        "video_name": this.videoName,
+        "datetime": dt.toUTCString(),
+        "ds": dt.getTime(),
+        "annotations": data,
+      }
       zip.file("data.json", JSON.stringify(
-        data
+        exportData
       ))
       this.submitting = true;
       zip.generateAsync({type: "blob"}).then((content) => {
-        saveFile(content, "annotations.zip");
+        saveFile(content, `${this.userId.value}_${this.videoName}.zip`);
         this.submitting = false
+        this.hasSubmitted = true
       });
     }
     this.rejectAnn = () => {
@@ -888,7 +1000,7 @@ class Narrator {
         return;
       }
       if(!this.isRecording) {
-        if(this.isPlaying) {
+        if(this.isPlaying()) {
           this.pause()
           this.wasPlaying = true
         } else {
@@ -911,10 +1023,9 @@ class Narrator {
       }
     }
     this.pause = () => {
-      if(!this.viewVideo || !this.isPlaying) return;
+      if(!this.isPlaying()) return;
       this.addEvent({type: "video", action: "pause", video_time: this.viewVideo.container.currentTime})
       this.viewVideo.container.pause()
-      this.isPlaying = false
       this.playBtn.innerHTML = "Play"
     }
     this.play = () => {
@@ -934,11 +1045,10 @@ class Narrator {
         volume: vidCont.volume,
       })
       this.viewVideo.container.play()
-      this.isPlaying = true
       this.playBtn.innerHTML = "Pause"
     }
     this.togglePlay = () => {
-      if(this.isPlaying) {
+      if(this.isPlaying()) {
         this.pause()
       } else {
         this.play()
@@ -980,8 +1090,8 @@ class Narrator {
       this.updateTimeline()
     }
     this.endRecording = (x) => {
-      let endTime = timeNow()
 
+      let endTime = timeNow()
       let src = x.url
       let node = document.createElement("li")
 
@@ -1043,6 +1153,7 @@ class Narrator {
       this.recordedEvents = []
       this.isRecording = false
       this.playDisabled = false
+      this.hasSubmitted = false
       // TODO: add option for whether we want auto-play?
       if(this.wasPlaying && ENABLE_AUTOPLAY) {
         this.play()
@@ -1159,6 +1270,12 @@ class Narrator {
         this.toggleScreen(SETTINGS_SCREEN, MAIN_SCREEN)
       } else if(e.key == "c" || e.key == "C") {
         this.clearStroke()
+      } else if(e.key === "m" || e.key === "M") {
+        this.toggleMute()
+      } else if(e.key === "n" || e.key === "N") {
+        this.nextVideo()
+      } else if(e.key === "p" || e.key === "P") {
+        this.prevVideo()
       }
     });
     document.addEventListener("keydown", (e) => {
@@ -1190,7 +1307,7 @@ class Narrator {
 
       if(ctx.activeScreen == MAIN_SCREEN) {
         ctx.draw.renderFrame(dt);
-        if(!ctx.sliderChanging && ctx.isPlaying) {
+        if(!ctx.sliderChanging && ctx.isPlaying()) {
           ctx.updateTimeline()
         }
       }
