@@ -50,7 +50,7 @@ def load_data():
         if x["s3_path"] is None:
             print(f"Skipping: {x}")
             continue
-        name = x["s3_path"].split("/")[-2]
+        name = x["take_name"]
         task_name = to_task_cat(x["task_id"])
         by_task[task_name].append(x)
         assert name not in by_name
