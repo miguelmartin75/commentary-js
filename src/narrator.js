@@ -971,7 +971,7 @@ class Narrator {
       }
       const profWhyText = this.proficiencyWhyText.value
       const profRating = this.profiencyScore
-      if(!profWhyText || !profRating) {
+      if(profRating != "N/A" && (!profWhyText || !profRating)) {
         alert("Please input a proficiency rating and reason")
         return;
       }
