@@ -53,7 +53,7 @@ def video_stream_path():
         t_now = time.time()
         if key in video_stream_cache:
             print("using cache", key)
-            t_delta = t_now -video_stream_cache[key]["time"]
+            t_delta = t_now - video_stream_cache[key]["time"]
             if abs(t_delta) < CACHE_SEC_THRESHOLD:
                 return video_stream_cache[key]["result"]
             
