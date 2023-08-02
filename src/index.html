@@ -275,45 +275,29 @@
                 </div>
                 <div>
                     <div class="flex flex-col shadow appearance-none border p-6">
-                        <div class="text-sm py-2">
-                            Proficiency Score
-                        </div>
+                        <label for="proficiencyScore" class="block text-gray-700 text-sm font-bold mb-2">Proficiency Score</label>
                         <div class="flex">
-                            <div class="flex items-center mr-4">
-                                <input id="proficiencyRatingNA" type="radio" value="N/A" name="profiencyRating" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <label for="proficiencyRatingNA" class="ml-2 text-sm font-medium text-gray-900">N/A</label>
-                            </div>
-                            <div class="flex items-center mr-4">
-                                <input id="proficiencyRating1" type="radio" value="1" name="profiencyRating" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <label for="proficiencyRating1" class="ml-2 text-sm font-medium text-gray-900">1</label>
-                            </div>
-                            <div class="flex items-center mr-4">
-                                <input id="proficiencyRating2" type="radio" value="2" name="profiencyRating" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <label for="proficiencyRating2" class="ml-2 text-sm font-medium text-gray-900">2</label>
-                            </div>
-                            <div class="flex items-center mr-4">
-                                <input id="proficiencyRating3" type="radio" value="3" name="profiencyRating" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <label for="proficiencyRating3" class="ml-2 text-sm font-medium text-gray-900">3</label>
-                            </div>
-                            <div class="flex items-center mr-4">
-                                <input id="proficiencyRating4" type="radio" value="4" name="profiencyRating" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <label for="proficiencyRating4" class="ml-2 text-sm font-medium text-gray-900">4</label>
-                            </div>
-                            <div class="flex items-center mr-4">
-                                <input id="proficiencyRating5" type="radio" value="5" name="profiencyRating" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <label for="proficiencyRating5" class="ml-2 text-sm font-medium text-gray-900">5</label>
-                            </div>
+
+                            <select name="proficiencyScore" id="proficiencyScore" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="_none">N/A</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                            </select>
                         </div>
                         <div class="text-sm py-2">
                             Why?
                         </div>
                         <textarea id="proficiencyWhyText" type="text" class="p-1 min-h-fit"></textarea>
                     </div>
-            </div>
-            <div>
+                </div>
                 <div>
-                    <ol id="audioList">
-                    </ol>
+                    <div>
+                        <ol id="audioList">
+                        </ol>
+                    </div>
                 </div>
             </div>
         </div>

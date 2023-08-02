@@ -685,10 +685,8 @@ class Narrator {
       this.draw.removeVideos()
 
       this.proficiencyWhyText.value = ""
-      this.profiencyScore = null
-      for(const el of Object.values(this.profiencySelectors)) {
-        el.checked = false;
-      }
+      this.proficiencyScore = null
+      this.profiencyScoreSelector.value = NONE_STR
 
       this.viewVideo = this.draw.addCreateVideo(url, () => {
         this.pause()
@@ -722,33 +720,78 @@ class Narrator {
 
     // setup devices
     this.devices = []
-    let micDevice = null
-    let videoDevice = "_none"
-    try {
-      this.devices = await navigator.mediaDevices.enumerateDevices()
-      for (var idx in this.devices) {
-        const dev = this.devices[idx];
-        const isDefault = dev.deviceId === "default";
-        const isAudioInp = dev.kind === "audioinput";
-        const isVideoInp = dev.kind === "videoinput";
-        this.devById[dev.deviceId] = dev;
-        if(isAudioInp) {
-          this.addAudioDevice(dev, isDefault)
-          if(isDefault) {
-            micDevice = dev.deviceId
-          }
-        } else if(isVideoInp) {
-          this.addVideoDevice(dev, isDefault)
-        }
-      }
-    } catch(e) {
-      console.error(e)
-    }
+    this.refreshingDevices = false
+    this.refreshDevices = async (updateMic, updateVid) => {
+      let micDevice = null
+      let videoDevice = NONE_STR
 
-    this.camOrMicChanged = () => {
-      const camDevId = this.cameraSelector.value;
+      if(updateVid) {
+        this.cameraSelector.innerHTML = ""
+        createOption("No Device", NONE_STR, false, this.cameraSelector)
+      }
+
+      if(updateMic) {
+        this.micSelector.innerHTML = ""
+        createOption("No Device", NONE_STR, false, this.micSelector)
+      }
+      console.log("refreshDevices", updateMic, updateVid)
+      try {
+        this.devices = await navigator.mediaDevices.enumerateDevices()
+        console.log("got", this.devices)
+        for (var idx in this.devices) {
+          const dev = this.devices[idx];
+          const isDefault = dev.deviceId === "default";
+          const isAudioInp = dev.kind === "audioinput";
+          const isVideoInp = dev.kind === "videoinput";
+          this.devById[dev.deviceId] = dev;
+          console.log(`isAudioInp=${isAudioInp}, isVideoInp=${isVideoInp}, dev=${dev}, updateMic=${updateMic}, updateVid=${updateVid}`)
+          if(isAudioInp && updateMic) {
+            this.addAudioDevice(dev, isDefault)
+            if(isDefault) {
+              micDevice = dev.deviceId
+            }
+          } else if(isVideoInp && updateVid) {
+            this.addVideoDevice(dev, isDefault)
+          }
+        }
+      } catch(e) {
+        console.error(e)
+      }
+    }
+    navigator.permissions.query({ name: "camera" }).then(res => {
+      if(res.state === "granted"){
+        this.refreshDevices(false, true).then(() => {
+          this.camOrMicChanged()
+        })
+      } else if (res.state === "prompt") {
+        this.camOrMicChanged(true).then(() => {
+          this.refreshDevices(false, true)
+        })
+      }
+    });
+    navigator.permissions.query({ name: "microphone" }).then(res => {
+      console.log("mic", res)
+      if(res.state === "granted"){
+        this.refreshDevices(true, false).then(() => {
+          this.camOrMicChanged()
+        })
+      } else if (res.state === "prompt") {
+        this.camOrMicChanged().then(() => {
+          this.refreshDevices(true, false)
+        })
+      }
+    });
+
+    this.camOrMicChanged = (forceVideo) => {
+      let camDevId = this.cameraSelector.value;
       const micDevId = this.micSelector.value;
-      this.createRecorder(camDevId, micDevId)
+      if(forceVideo) {
+        if(camDevId == NONE_STR) {
+          camDevId = null;
+        }
+
+      }
+      return this.createRecorder(camDevId, micDevId)
     }
     this.cameraSelector.addEventListener("change", this.camOrMicChanged)
     this.micSelector.addEventListener("change", this.camOrMicChanged)
@@ -770,6 +813,7 @@ class Narrator {
         alert("Please enter your user id")
         return;
       }
+      this.userId.disabled = true
       if(this.videoSelector.value === NONE_STR) {
         alert("Please select a video")
         return;
@@ -792,7 +836,7 @@ class Narrator {
     }
     this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
 
-    this.userId.addEventListener("input", () => {
+    this.userId.addEventListener("input", (e) => {
       const value = deepCopy(this.userId.value)
       if(value.length === 0) {
         this.userIdValid = false
@@ -823,10 +867,6 @@ class Narrator {
         }
       })
     })
-
-
-    let err = await this.createRecorder(videoDevice, micDevice)
-    if(err) return err;
   }
 
   getVideoContainer() {
@@ -891,23 +931,26 @@ class Narrator {
     }
     disableFocusForSlider(this.volumeBar)
     this.proficiencyWhyText = document.getElementById("proficiencyWhyText")
-    this.profiencySelectors = {}
-    this.profiencyScore = null
-    for(const name of [
-      "proficiencyRatingNA",
-      "proficiencyRating1",
-      "proficiencyRating2",
-      "proficiencyRating3",
-      "proficiencyRating4",
-      "proficiencyRating5",
-    ]) {
-      let el = document.getElementById(name)
-      el.addEventListener("click", () => {
-        this.profiencyScore = el.value
-      })
-      disableFocusForClickable(el)
-      this.profiencySelectors[el.value] = el
-    }
+    this.profiencyScoreSelector = document.getElementById("proficiencyScore")
+    this.proficiencyScore = null
+    this.profiencyScoreSelector.addEventListener("change", () => {
+      this.proficiencyScore = this.profiencyScoreSelector.value
+    })
+    // for(const name of [
+    //   "proficiencyRatingNA",
+    //   "proficiencyRating1",
+    //   "proficiencyRating2",
+    //   "proficiencyRating3",
+    //   "proficiencyRating4",
+    //   "proficiencyRating5",
+    // ]) {
+    //   let el = document.getElementById(name)
+    //   el.addEventListener("click", () => {
+    //     this.profiencyScore = el.value
+    //   })
+    //   disableFocusForClickable(el)
+    //   this.profiencySelectors[el.value] = el
+    // }
 
     // active screen
     this.prevScreen = undefined
@@ -970,7 +1013,7 @@ class Narrator {
         return;
       }
       const profWhyText = this.proficiencyWhyText.value
-      const profRating = this.profiencyScore
+      const profRating = this.proficiencyScore
       if(profRating != "N/A" && (!profWhyText || !profRating)) {
         alert("Please input a proficiency rating and reason")
         return;
@@ -1020,6 +1063,7 @@ class Narrator {
       console.debug("reject")
     }
     this.toggleRecord = () => {
+      console.log("record toggle")
       if(this.recordDisabled || !this.viewVideo) {
         return;
       }
@@ -1059,6 +1103,7 @@ class Narrator {
       this.playBtn.innerHTML = "Play"
     }
     this.play = () => {
+      console.log("play triggered")
       if(this.playDisabled || !this.viewVideo) {
         return;
       }
