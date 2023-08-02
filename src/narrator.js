@@ -684,6 +684,12 @@ class Narrator {
       this.clearStroke()
       this.draw.removeVideos()
 
+      this.proficiencyWhyText.value = ""
+      this.profiencyScore = null
+      for(const el of Object.values(this.profiencySelectors)) {
+        el.checked = false;
+      }
+
       this.viewVideo = this.draw.addCreateVideo(url, () => {
         this.pause()
         this.draw.onResize()
@@ -884,7 +890,24 @@ class Narrator {
       disableFocusForClickable(this.playSpeedSelectors[value])
     }
     disableFocusForSlider(this.volumeBar)
-
+    this.proficiencyWhyText = document.getElementById("proficiencyWhyText")
+    this.profiencySelectors = {}
+    this.profiencyScore = null
+    for(const name of [
+      "proficiencyRatingNA",
+      "proficiencyRating1",
+      "proficiencyRating2",
+      "proficiencyRating3",
+      "proficiencyRating4",
+      "proficiencyRating5",
+    ]) {
+      let el = document.getElementById(name)
+      el.addEventListener("click", () => {
+        this.profiencyScore = el.value
+      })
+      disableFocusForClickable(el)
+      this.profiencySelectors[el.value] = el
+    }
 
     // active screen
     this.prevScreen = undefined
@@ -946,6 +969,13 @@ class Narrator {
       if(this.submitting) {
         return;
       }
+      const profWhyText = this.proficiencyWhyText.value
+      const profRating = this.profiencyScore
+      if(profRating != "N/A" && (!profWhyText || !profRating)) {
+        alert("Please input a proficiency rating and reason")
+        return;
+      }
+
       var zip = new JSZip();
       var vids = zip.folder("recordings");
       let data = []
@@ -971,6 +1001,10 @@ class Narrator {
         "datetime": dt.toUTCString(),
         "ds": dt.getTime(),
         "annotations": data,
+        "proficiency": {
+          "why": profWhyText,
+          "rating": profRating,
+        }
       }
       zip.file("data.json", JSON.stringify(
         exportData
@@ -1256,6 +1290,9 @@ class Narrator {
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
+      if(this.proficiencyWhyText === document.activeElement) {
+        return;
+      }
       if(e.key === " ") {
         this.togglePlay()
       } else if (e.key === "r" || e.key == "R" || e.key == "Enter") {
@@ -1275,6 +1312,9 @@ class Narrator {
       }
     });
     document.addEventListener("keydown", (e) => {
+      if(this.proficiencyWhyText === document.activeElement) {
+        return;
+      }
       if(e.key == " ") {
         e.preventDefault()
       }
