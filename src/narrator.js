@@ -647,10 +647,14 @@ class Narrator {
       }
     }
 
-    this.openVideoByName = (name) => {
+    this.openVideoByInfo = (info) => {
+      console.log("info=", info)
+      const name = info["name"]
+      const task = info["task"]
       if(!this.checkIfCanOpenNewVideo()) {
         return false;
       }
+      console.log("name=", name)
 
       fetch('/videos/', {
           method: "POST",
@@ -675,7 +679,7 @@ class Narrator {
         if(this.openVideo(x["path"], name)) {
           let found = false;
           for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
-            if(this.videosToAnnotate[idx] == name) {
+            if(this.videosToAnnotate[idx]["name"] == name) {
               found = true;
               this.videoIdx = idx;
               break;
@@ -687,6 +691,7 @@ class Narrator {
           }
           this.videoSelector.selectedIndex = this.videoIdx + 1;
           this.videoName = name;
+          this.taskInfo.innerHTML = task
           this.updateVideoNameLabel()
           this.setScreen(MAIN_SCREEN)
         }
@@ -727,12 +732,12 @@ class Narrator {
 
     this.nextVideo = () => {
       let idx = (this.videoIdx + 1) % this.videosToAnnotate.length
-      this.openVideoByName(this.videosToAnnotate[idx])
+      this.openVideoByInfo(this.videosToAnnotate[idx])
     }
 
     this.prevVideo = () => {
       let idx = (this.videoIdx - 1) % this.videosToAnnotate.length
-      this.openVideoByName(this.videosToAnnotate[idx])
+      this.openVideoByInfo(this.videosToAnnotate[idx])
     }
 
     this.addVideoDevice = (x, isSelected) => {
@@ -832,20 +837,26 @@ class Narrator {
         alert("Please select a video")
         return;
       }
+      if(this.videosToAnnotate.length === 0) {
+        alert("No videos to annotate. Please report bug to workplace group.")
+        return;
+      }
 
-      this.openVideoByName(this.videoSelector.value)
+
+      this.openVideoByInfo(this.videosToAnnotate[this.videoSelector.selectedIndex - 1])
     });
 
     // this.categories = {}
     this.updateVideosForExpertise = () => {
       this.videoSelector.innerHTML = "";
       let catName = this.metadata["category"]
-      let names = this.metadata["videos_by_category"][catName];
+      let vids = this.metadata["videos_by_category"][catName];
       this.videosToAnnotate = []
       createOption("None", "_none", true, this.videoSelector)
-      for(let name of names) {
-        createOption(name, name, false, this.videoSelector)
-        this.videosToAnnotate.push(name)
+      for(let vid of vids) {
+        createOption(vid["name"], vid["name"], false, this.videoSelector)
+        console.log('add', vid)
+        this.videosToAnnotate.push(vid)
       }
     }
     this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
@@ -899,6 +910,7 @@ class Narrator {
 
   async init() {
     // ui elements
+    this.taskInfo = document.getElementById("taskInfo")
     this.recordSideBar = document.getElementById("recordSideBar")
     this.micVolumeBar = document.getElementById("micVolumeBar")
     this.muteButton = document.getElementById("muteBtn")

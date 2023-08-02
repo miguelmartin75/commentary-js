@@ -51,8 +51,8 @@ def load_data():
             print(f"Skipping: {x}")
             continue
         name = x["take_name"]
-        task_name = to_task_cat(x["task_id"])
-        by_task[task_name].append(x)
+        task_cat = to_task_cat(x["task_id"])
+        by_task[task_cat].append(x)
         assert name not in by_name
         by_name[name] = x
 

@@ -32,9 +32,15 @@ def videos(userid):
         "valid": userid in app_data.users,
         "category": user_cat,
         "videos_by_category": {
-            task_name: [x["take_name"] for x in xs]
-            for task_name, xs in app_data.videos_by_task.items()
-            if task_name == user_cat
+            cat_name: [
+                {
+                    "name": x["take_name"],
+                    "task": x["task_name"],
+                }
+                for x in xs
+            ]
+            for cat_name, xs in app_data.videos_by_task.items()
+            if cat_name == user_cat
         }
     }
     return jsonify(ret)

@@ -261,6 +261,9 @@
             </main>
             <div class="max-h-screen bg-gray-200 shadow-sm p-6 space-y-6 w-1/4 overflow-y-scroll border-4" id="recordSideBar">
                 <div>
+                    <div class="block text-gray-700 text-sm font-bold mb-2" id="taskInfo">
+                        No video loaded
+                    </div>
                     <div class="flex">
                         <button id="rejectBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2" hidden>Reject</button>
                         <button id="submitBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
@@ -279,7 +282,8 @@
                         <div class="flex">
 
                             <select name="proficiencyScore" id="proficiencyScore" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="_none">N/A</option>
+                                <option value="_none">None</option>
+                                <option value="N/A">N/A</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>
                                 <option value="3">3</option>
