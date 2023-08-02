@@ -926,21 +926,6 @@ class Narrator {
     this.profiencyScoreSelector.addEventListener("change", () => {
       this.proficiencyScore = this.profiencyScoreSelector.value
     })
-    // for(const name of [
-    //   "proficiencyRatingNA",
-    //   "proficiencyRating1",
-    //   "proficiencyRating2",
-    //   "proficiencyRating3",
-    //   "proficiencyRating4",
-    //   "proficiencyRating5",
-    // ]) {
-    //   let el = document.getElementById(name)
-    //   el.addEventListener("click", () => {
-    //     this.profiencyScore = el.value
-    //   })
-    //   disableFocusForClickable(el)
-    //   this.profiencySelectors[el.value] = el
-    // }
 
     // active screen
     this.prevScreen = undefined
@@ -1327,7 +1312,9 @@ class Narrator {
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
-      if(this.proficiencyWhyText === document.activeElement || this.userId === document.activeElement) {
+      const isTextInput = document.activeElement.tagName.toLowerCase() && document.activeElement.type === "text"
+      const isTextArea = document.activeElement.tagName.toLowerCase() === "textarea"
+      if(isTextArea || isTextInput) {
         return;
       }
       if(e.key === " ") {
@@ -1349,7 +1336,9 @@ class Narrator {
       }
     });
     document.addEventListener("keydown", (e) => {
-      if(this.proficiencyWhyText === document.activeElement || this.userId === document.activeElement) {
+      const isTextInput = document.activeElement.tagName.toLowerCase() && document.activeElement.type === "text"
+      const isTextArea = document.activeElement.tagName.toLowerCase() === "textarea"
+      if(isTextArea || isTextInput) {
         return;
       }
       if(e.key == " ") {
