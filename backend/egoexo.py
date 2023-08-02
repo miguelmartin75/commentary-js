@@ -56,6 +56,10 @@ def load_data():
         assert name not in by_name
         by_name[name] = x
 
+    for cat in by_task.keys():
+        user_id = cat.split(" ")[0].lower() + "_test_meta_"
+        users[user_id] = cat
+        print(user_id)
 
     users["correctvideo"] = "Test"
     take_name = "Test_Example"
@@ -67,6 +71,7 @@ def load_data():
     }
     by_name[take_name] = take_data
     by_task[task_name] = [take_data]
+
     return EgoExoData(
         users=users,
         videos_by_name=by_name,

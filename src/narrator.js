@@ -677,6 +677,7 @@ class Narrator {
         return false;
       }
       this.pause()
+      this.unmute()
       this.videoName = name
       this.hasSubmitted = false
       this.recorder.stop()
@@ -722,9 +723,6 @@ class Narrator {
     this.devices = []
     this.refreshingDevices = false
     this.refreshDevices = async (updateMic, updateVid) => {
-      let micDevice = null
-      let videoDevice = NONE_STR
-
       if(updateVid) {
         this.cameraSelector.innerHTML = ""
         createOption("No Device", NONE_STR, false, this.cameraSelector)
@@ -734,22 +732,17 @@ class Narrator {
         this.micSelector.innerHTML = ""
         createOption("No Device", NONE_STR, false, this.micSelector)
       }
-      console.log("refreshDevices", updateMic, updateVid)
       try {
         this.devices = await navigator.mediaDevices.enumerateDevices()
-        console.log("got", this.devices)
         for (var idx in this.devices) {
           const dev = this.devices[idx];
           const isDefault = dev.deviceId === "default";
           const isAudioInp = dev.kind === "audioinput";
           const isVideoInp = dev.kind === "videoinput";
           this.devById[dev.deviceId] = dev;
-          console.log(`isAudioInp=${isAudioInp}, isVideoInp=${isVideoInp}, dev=${dev}, updateMic=${updateMic}, updateVid=${updateVid}`)
+          // console.log(`isAudioInp=${isAudioInp}, isVideoInp=${isVideoInp}, dev=${dev}, updateMic=${updateMic}, updateVid=${updateVid}`)
           if(isAudioInp && updateMic) {
             this.addAudioDevice(dev, isDefault)
-            if(isDefault) {
-              micDevice = dev.deviceId
-            }
           } else if(isVideoInp && updateVid) {
             this.addVideoDevice(dev, isDefault)
           }
@@ -760,9 +753,7 @@ class Narrator {
     }
     navigator.permissions.query({ name: "camera" }).then(res => {
       if(res.state === "granted"){
-        this.refreshDevices(false, true).then(() => {
-          this.camOrMicChanged()
-        })
+        this.refreshDevices(false, true)
       } else if (res.state === "prompt") {
         this.camOrMicChanged(true).then(() => {
           this.refreshDevices(false, true)
@@ -770,7 +761,6 @@ class Narrator {
       }
     });
     navigator.permissions.query({ name: "microphone" }).then(res => {
-      console.log("mic", res)
       if(res.state === "granted"){
         this.refreshDevices(true, false).then(() => {
           this.camOrMicChanged()
@@ -1063,7 +1053,6 @@ class Narrator {
       console.debug("reject")
     }
     this.toggleRecord = () => {
-      console.log("record toggle")
       if(this.recordDisabled || !this.viewVideo) {
         return;
       }
@@ -1103,7 +1092,6 @@ class Narrator {
       this.playBtn.innerHTML = "Play"
     }
     this.play = () => {
-      console.log("play triggered")
       if(this.playDisabled || !this.viewVideo) {
         return;
       }
@@ -1295,14 +1283,18 @@ class Narrator {
       }
     }
     this.mute = () => {
-      const vidCont = this.viewVideo.container.video
-      vidCont.muted = true;
-      this.muteButton.innerHTML = "Unmute";
+      if(this.viewVideo) {
+        const vidCont = this.viewVideo.container.video
+        vidCont.muted = true;
+        this.muteButton.innerHTML = "Unmute";
+      }
     }
     this.unmute = () => {
-      const vidCont = this.viewVideo.container.video
-      vidCont.muted = false;
-      this.muteButton.innerHTML = "Mute";
+      if(this.viewVideo) {
+        const vidCont = this.viewVideo.container.video
+        vidCont.muted = false;
+        this.muteButton.innerHTML = "Mute";
+      }
     }
     this.toggleMute = () => {
       const vidCont = this.viewVideo.container.video
@@ -1335,7 +1327,7 @@ class Narrator {
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
-      if(this.proficiencyWhyText === document.activeElement) {
+      if(this.proficiencyWhyText === document.activeElement || this.userId === document.activeElement) {
         return;
       }
       if(e.key === " ") {
@@ -1357,7 +1349,7 @@ class Narrator {
       }
     });
     document.addEventListener("keydown", (e) => {
-      if(this.proficiencyWhyText === document.activeElement) {
+      if(this.proficiencyWhyText === document.activeElement || this.userId === document.activeElement) {
         return;
       }
       if(e.key == " ") {
