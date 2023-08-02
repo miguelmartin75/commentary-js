@@ -467,6 +467,30 @@ class Narrator {
       console.error(e)
     }
 
+    // ref https://stackoverflow.com/a/52952907
+    // mic volume bar
+    {
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(this.stream);
+      const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+
+      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 1024;
+
+      microphone.connect(analyser);
+      analyser.connect(scriptProcessor);
+      scriptProcessor.connect(audioContext.destination);
+      scriptProcessor.onaudioprocess = () => {
+        if(this.activeScreen === SETTINGS_SCREEN) {
+          const array = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(array);
+          const arraySum = array.reduce((a, value) => a + value, 0);
+          const average = arraySum / array.length;
+          micVolumeBar.value = Math.round(average)
+        }
+      };
+    }
     err = this.recorder.setup(this.stream, this._recordingCreated, media["video"] !== false)
     if(err) {
       return err
@@ -876,6 +900,7 @@ class Narrator {
   async init() {
     // ui elements
     this.recordSideBar = document.getElementById("recordSideBar")
+    this.micVolumeBar = document.getElementById("micVolumeBar")
     this.muteButton = document.getElementById("muteBtn")
     this.volumeBar = document.getElementById("volumeBar")
     this.volumeLevel = document.getElementById("volumeLevel")
@@ -1312,7 +1337,7 @@ class Narrator {
 
     // shortcuts
     document.addEventListener("keyup", (e) => {
-      const isTextInput = document.activeElement.tagName.toLowerCase() && document.activeElement.type === "text"
+      const isTextInput = document.activeElement.tagName.toLowerCase() === "input" && document.activeElement.type === "text"
       const isTextArea = document.activeElement.tagName.toLowerCase() === "textarea"
       if(isTextArea || isTextInput) {
         return;
@@ -1336,7 +1361,7 @@ class Narrator {
       }
     });
     document.addEventListener("keydown", (e) => {
-      const isTextInput = document.activeElement.tagName.toLowerCase() && document.activeElement.type === "text"
+      const isTextInput = document.activeElement.tagName.toLowerCase() === "input" && document.activeElement.type === "text"
       const isTextArea = document.activeElement.tagName.toLowerCase() === "textarea"
       if(isTextArea || isTextInput) {
         return;
