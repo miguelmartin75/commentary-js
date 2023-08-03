@@ -473,15 +473,18 @@ class Narrator {
       const audioContext = new AudioContext();
       const analyser = audioContext.createAnalyser();
       const microphone = audioContext.createMediaStreamSource(this.stream);
-      const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+      if(this.scriptProcessor) {
+        this.scriptProcessor.onaudioprocess = null;
+      }
+      this.scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
 
       analyser.smoothingTimeConstant = 0.8;
       analyser.fftSize = 1024;
 
       microphone.connect(analyser);
-      analyser.connect(scriptProcessor);
-      scriptProcessor.connect(audioContext.destination);
-      scriptProcessor.onaudioprocess = () => {
+      analyser.connect(this.scriptProcessor);
+      this.scriptProcessor.connect(audioContext.destination);
+      this.scriptProcessor.onaudioprocess = () => {
         if(this.activeScreen === SETTINGS_SCREEN) {
           const array = new Uint8Array(analyser.frequencyBinCount);
           analyser.getByteFrequencyData(array);
@@ -803,17 +806,19 @@ class Narrator {
 
     this.camOrMicChanged = (forceVideo) => {
       let camDevId = this.cameraSelector.value;
+      console.log("this.cameraSelector.value=", camDevId)
       const micDevId = this.micSelector.value;
       if(forceVideo) {
+        console.log("forceVideo")
         if(camDevId == NONE_STR) {
           camDevId = null;
         }
-
       }
+      console.log("camOrMicChanged, cam=", camDevId, "mic=", micDevId)
       return this.createRecorder(camDevId, micDevId)
     }
-    this.cameraSelector.addEventListener("change", this.camOrMicChanged)
-    this.micSelector.addEventListener("change", this.camOrMicChanged)
+    this.cameraSelector.addEventListener("change", () => { this.camOrMicChanged() })
+    this.micSelector.addEventListener("change", () => { this.camOrMicChanged() })
 
     this.selectVideoDevice = (deviceId) => {
       for(const opt of this.cameraSelector.options) {
