@@ -11,6 +11,7 @@ pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_07192023.json"
 METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/metadata.json"
+SELECTED_TAKES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/selected_takes.json"
 
 
 @dataclass
@@ -43,6 +44,7 @@ def to_task_cat(tid):
 def load_data():
     users = json.load(pathmgr.open(USER_PATH))
     data = json.load(pathmgr.open(METADATA_PATH))
+    selected_takes = json.load(pathmgr.open(SELECTED_TAKES_PATH))
     print(f"Loaded: {len(data)} takes")
     by_task = defaultdict(list)
     by_name = {}
@@ -51,7 +53,10 @@ def load_data():
             print(f"Skipping: {x}")
             continue
         name = x["take_name"]
-        task_cat = to_task_cat(x["task_id"])
+        task_cat = x["task_cat"]
+        if name not in selected_takes[task_cat]:
+            continue
+
         by_task[task_cat].append(x)
         assert name not in by_name
         by_name[name] = x
