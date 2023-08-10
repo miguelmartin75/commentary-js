@@ -1236,6 +1236,9 @@ class Narrator {
       replayButton.innerHTML = "Replay"
       replayButton.className = REPLAY_ANN_BUTTON_CLASSES
       recNode.addEventListener("play", () => {
+        // TODO: 
+        // can we stop the play until the video has seeked to the
+        // appropriate time?
         if(this.currRecNode !== recNode && this.currRecNode) {
           this.currRecNode.pause()
           this.currRecNode.currentTime = 0
@@ -1274,7 +1277,23 @@ class Narrator {
       node.appendChild(recNode)
 
       audioList.prepend(node);
+    }
+
+    this.endRecording = (x) => {
+      let endTime = timeNow()
+      let dur = (endTime - this.recordStartAppTime) / 1000
       this.finishStrokes()
+      x.data = {
+        video_time: this.recordTime,
+        start_global_time: this.recordStartAppTime,
+        end_global_time: endTime,
+        events: deepCopy(this.recordedEvents),
+        duration_approx: dur,
+      }
+      this.addRecording({
+        ...x.data,
+        ...x,
+      })
       this.recordTime = null
       this.recordDisabled = false
       this.recordStartAppTime = null
@@ -1288,22 +1307,6 @@ class Narrator {
         this.wasPlaying = false
       }
       this.resetDrawCanvas()
-    }
-
-    this.endRecording = (x) => {
-      let endTime = timeNow()
-      let dur = (endTime - this.recordStartAppTime) / 1000
-      x.data = {
-        video_time: this.recordTime,
-        start_global_time: this.recordStartAppTime,
-        end_global_time: endTime,
-        events: deepCopy(this.recordedEvents),
-        duration_approx: dur,
-      }
-      this.addRecording({
-        ...x.data,
-        ...x,
-      })
     }
     this.clearAnnotations = () => {
       this.recorder.clearRecordings()
@@ -1528,7 +1531,7 @@ class Narrator {
       const dt = now - then;
       then = now;
 
-      // if(ctx.mode === MODE_REPLAY) {
+      // if(ctx.mode === MODE_REPLAY && ctx.currRecNode) {
       // TODO: add paths here
       // }
 
