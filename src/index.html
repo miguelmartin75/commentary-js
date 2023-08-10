@@ -130,7 +130,7 @@
                     </div>
                 </div>
                 <form class="flex-col grow-0 px-6 w-1/2">
-                    <form class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 ">
+                    <form class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
                         <div class="shadow appearance-none border p-6">
                             <div class="mb-4">
                                 <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
@@ -178,6 +178,23 @@
                         <div>
                             <button id="startAnnotatingBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
                                 Start Annotating
+                            </button>
+                        </div>
+                        <!-- or separator -->
+                        <div class="inline-flex items-center justify-center w-full">
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                            <span class="px-3 font-small text-gray-900  bg-white left-1/2">or</span>
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="videoFile">
+                                Open Annotation
+                            </label>
+                            <input class="shadow appearance-none border rounded w-full p-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="annotationFile" type="file">
+                        </div>
+                        <div class="m-2">
+                            <button id="openAnnotationBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                                Open
                             </button>
                         </div>
                     </form>
