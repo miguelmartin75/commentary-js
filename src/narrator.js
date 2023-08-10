@@ -4,6 +4,8 @@ const ENABLE_REPLAY = false;
 const ENABLE_AUTOPLAY = true;
 
 const NONE_STR = "_none"
+const MODE_ANNOTATE = 0
+const MODE_REPLAY = 1
 const MAIN_SCREEN = 1
 const SETTINGS_SCREEN = 2
 const SHORTCUTS_SCREEN = 3
@@ -202,6 +204,11 @@ class Recorder {
   }
 }
 
+function isPlaying(el) {
+  // https://stackoverflow.com/a/6877530
+  return !!(el.currentTime > 0 && !el.paused && !el.ended && el.readyState > 2);
+}
+
 class Video {
   constructor(video, url, on_play_fail, seek_to, on_ready) {
     // TODO: investigate performance using "timeupdate"
@@ -254,9 +261,7 @@ class Video {
   }
 
   isPlaying() {
-    // https://stackoverflow.com/a/6877530
-    const video = this.video
-    return !!(video.currentTime > 0 && !video.paused && !video.ended && video.readyState > 2);
+    return isPlaying(this.video)
   }
 
   isReady() {
@@ -650,14 +655,12 @@ class Narrator {
       }
     }
 
-    this.openVideoByInfo = (info) => {
-      console.log("info=", info)
+    this.openVideoByInfo = (info, onReady, force) => {
       const name = info["name"]
       const task = info["task"]
       if(!this.checkIfCanOpenNewVideo()) {
         return false;
       }
-      console.log("name=", name)
 
       fetch('/videos/', {
           method: "POST",
@@ -679,7 +682,7 @@ class Narrator {
           alert(`Could not load video '${this.videoSelector.value}'\nPlease report this the workplace group.`)
           return;
         }
-        if(this.openVideo(x["path"], name)) {
+        if(this.openVideo(x["path"], name, force)) {
           let found = false;
           for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
             if(this.videosToAnnotate[idx]["name"] == name) {
@@ -697,12 +700,15 @@ class Narrator {
           this.taskInfo.innerHTML = task
           this.updateVideoNameLabel()
           this.setScreen(MAIN_SCREEN)
+          if(onReady) {
+            onReady()
+          }
         }
       })
     }
 
-    this.openVideo = (url, name) => {
-      if(this.viewVideo && name === this.videoName) {
+    this.openVideo = (url, name, force) => {
+      if(this.viewVideo && name === this.videoName && !force) {
         return false;
       }
       if(!this.checkIfCanOpenNewVideo()) {
@@ -718,7 +724,6 @@ class Narrator {
       this.draw.removeVideos()
 
       this.proficiencyWhyText.value = ""
-      this.proficiencyScore = null
       this.profiencyScoreSelector.value = NONE_STR
 
       this.viewVideo = this.draw.addCreateVideo(url, () => {
@@ -772,7 +777,6 @@ class Narrator {
           const isAudioInp = dev.kind === "audioinput";
           const isVideoInp = dev.kind === "videoinput";
           this.devById[dev.deviceId] = dev;
-          // console.log(`isAudioInp=${isAudioInp}, isVideoInp=${isVideoInp}, dev=${dev}, updateMic=${updateMic}, updateVid=${updateVid}`)
           if(isAudioInp && updateMic) {
             this.addAudioDevice(dev, isDefault)
           } else if(isVideoInp && updateVid) {
@@ -806,15 +810,12 @@ class Narrator {
 
     this.camOrMicChanged = (forceVideo) => {
       let camDevId = this.cameraSelector.value;
-      console.log("this.cameraSelector.value=", camDevId)
       const micDevId = this.micSelector.value;
       if(forceVideo) {
-        console.log("forceVideo")
         if(camDevId == NONE_STR) {
           camDevId = null;
         }
       }
-      console.log("camOrMicChanged, cam=", camDevId, "mic=", micDevId)
       return this.createRecorder(camDevId, micDevId)
     }
     this.cameraSelector.addEventListener("change", () => { this.camOrMicChanged() })
@@ -860,13 +861,12 @@ class Narrator {
       createOption("None", "_none", true, this.videoSelector)
       for(let vid of vids) {
         createOption(vid["name"], vid["name"], false, this.videoSelector)
-        console.log('add', vid)
         this.videosToAnnotate.push(vid)
       }
     }
     this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
 
-    this.userId.addEventListener("input", (e) => {
+    this.checkUser = (onReady) => {
       const value = deepCopy(this.userId.value)
       if(value.length === 0) {
         this.userIdValid = false
@@ -894,8 +894,15 @@ class Narrator {
           createOption(catName, catName, false, this.expertiseSelector)
           this.expertiseSelector.value = catName
           this.updateVideosForExpertise()
+          if(onReady) { 
+            onReady()
+          }
         }
       })
+    }
+
+    this.userId.addEventListener("input", (e) => {
+      this.checkUser()
     })
   }
 
@@ -915,6 +922,8 @@ class Narrator {
 
   async init() {
     // ui elements
+    this.openAnnotationBtn = document.getElementById("openAnnotationBtn")
+    this.annotationFileSelector = document.getElementById("annotationFile")
     this.taskInfo = document.getElementById("taskInfo")
     this.recordSideBar = document.getElementById("recordSideBar")
     this.micVolumeBar = document.getElementById("micVolumeBar")
@@ -964,10 +973,10 @@ class Narrator {
     disableFocusForSlider(this.volumeBar)
     this.proficiencyWhyText = document.getElementById("proficiencyWhyText")
     this.profiencyScoreSelector = document.getElementById("proficiencyScore")
-    this.proficiencyScore = null
-    this.profiencyScoreSelector.addEventListener("change", () => {
-      this.proficiencyScore = this.profiencyScoreSelector.value
-    })
+
+    this.mode = MODE_ANNOTATE
+    this.replayDatum = null
+    this.currRecNode = null
 
     // active screen
     this.prevScreen = undefined
@@ -1030,7 +1039,7 @@ class Narrator {
         return;
       }
       const profWhyText = this.proficiencyWhyText.value
-      const profRating = this.proficiencyScore
+      const profRating = this.profiencyScoreSelector.value
       if(profRating != "N/A" && (!profWhyText || !profRating)) {
         alert("Please input a proficiency rating and reason")
         return;
@@ -1080,7 +1089,7 @@ class Narrator {
       console.debug("reject")
     }
     this.toggleRecord = () => {
-      if(this.recordDisabled || !this.viewVideo) {
+      if(this.recordDisabled || !this.viewVideo || this.mode !== MODE_ANNOTATE) {
         return;
       }
       if(!this.isRecording) {
@@ -1119,7 +1128,7 @@ class Narrator {
       this.playBtn.innerHTML = "Play"
     }
     this.play = () => {
-      if(this.playDisabled || !this.viewVideo) {
+      if(this.playDisabled || !this.viewVideo || this.mode !== MODE_ANNOTATE) {
         return;
       }
       if(this.isRecording) {
@@ -1149,6 +1158,10 @@ class Narrator {
         return;
       }
 
+      if(this.playDisabled || !this.viewVideo || this.mode !== MODE_ANNOTATE) {
+        return;
+      }
+
       const vidCont = this.getVideoContainer()
       if(!vidCont) return;
       vidCont.currentTime += 1/30.0
@@ -1166,6 +1179,10 @@ class Narrator {
       if(!ENABLE_REPLAY && this.isRecording) {
         return;
       }
+      if(this.playDisabled || !this.viewVideo || this.mode !== MODE_ANNOTATE) {
+        return;
+      }
+
       const vidCont = this.getVideoContainer()
       if(!vidCont) return;
       vidCont.currentTime -= 1/30.0
@@ -1179,16 +1196,14 @@ class Narrator {
       })
       this.updateTimeline()
     }
-    this.endRecording = (x) => {
-
-      let endTime = timeNow()
+    this.addRecording = (x) => {
       let src = x.url
       let node = document.createElement("li")
 
       let timeButton = document.createElement("button")
-      let recordTime = this.recordTime;
-      let dur = (endTime - this.recordStartAppTime) / 1000
-      timeButton.innerHTML = `Time: ${this.recordTime.toFixed(3)} (${dur.toFixed(2)}s)`
+      let recordTime = x.video_time;
+      let dur = x.duration_approx
+      timeButton.innerHTML = `Time: ${recordTime.toFixed(3)} (${dur.toFixed(2)}s)`
       timeButton.className = TIME_BUTTON_CLASSES
       timeButton.addEventListener("click", () => {
         if(this.viewVideo) {
@@ -1212,34 +1227,54 @@ class Narrator {
       node.appendChild(timeButton)
       node.appendChild(delButton)
 
-      if(ENABLE_REPLAY) {
-        let replayButton = document.createElement("button")
-        replayButton.innerHTML = "Replay"
-        replayButton.className = REPLAY_ANN_BUTTON_CLASSES
-        replayButton.addEventListener("click", () => {
-          // TODO: replay
-          console.log("replay clicked")
-        });
-        disableFocusForClickable(replayButton)
-        node.appendChild(replayButton)
-      }
-
       let tag = this.recorder.videoEnabled ? "video": "audio"
       let recNode = document.createElement(tag)
       recNode.src = src
       recNode.setAttribute("controls", "controls")
+
+      let replayButton = document.createElement("button")
+      replayButton.innerHTML = "Replay"
+      replayButton.className = REPLAY_ANN_BUTTON_CLASSES
+      recNode.addEventListener("play", () => {
+        if(this.currRecNode !== recNode && this.currRecNode) {
+          this.currRecNode.pause()
+          this.currRecNode.currentTime = 0
+        }
+        this.mode = MODE_REPLAY
+        this.currRecNode = recNode
+        this.replayDatum = x
+        this.viewVideo.container.video.currentTime = recordTime
+        this.updateTimeline()
+      })
+      recNode.addEventListener("pause", () => {
+        if(recNode === this.currRecNode) {
+          this.mode = MODE_ANNOTATE
+        }
+      })
+      recNode.addEventListener("ended", () => {
+        if(recNode === this.currRecNode) {
+          this.mode = MODE_ANNOTATE
+        }
+      })
+      replayButton.addEventListener("click", () => {
+        if(this.isRecording || !this.viewVideo) {
+          return;
+        }
+        this.pause()
+        this.viewVideo.container.video.currentTime = recordTime
+        this.updateTimeline()
+        recNode.currentTime = 0
+        recNode.play()
+      });
+      disableFocusForClickable(replayButton)
+      node.appendChild(replayButton)
+
+      // TODO: add play event for recNode
       disableFocusForClickable(recNode)
       node.appendChild(recNode)
 
       audioList.prepend(node);
       this.finishStrokes()
-      x.data = {
-        video_time: this.recordTime,
-        start_global_time: this.recordStartAppTime,
-        end_global_time: endTime,
-        events: deepCopy(this.recordedEvents),
-        duration_approx: dur,
-      }
       this.recordTime = null
       this.recordDisabled = false
       this.recordStartAppTime = null
@@ -1253,6 +1288,22 @@ class Narrator {
         this.wasPlaying = false
       }
       this.resetDrawCanvas()
+    }
+
+    this.endRecording = (x) => {
+      let endTime = timeNow()
+      let dur = (endTime - this.recordStartAppTime) / 1000
+      x.data = {
+        video_time: this.recordTime,
+        start_global_time: this.recordStartAppTime,
+        end_global_time: endTime,
+        events: deepCopy(this.recordedEvents),
+        duration_approx: dur,
+      }
+      this.addRecording({
+        ...x.data,
+        ...x,
+      })
     }
     this.clearAnnotations = () => {
       this.recorder.clearRecordings()
@@ -1396,6 +1447,74 @@ class Narrator {
       }
     });
 
+    this.openAnnotation = (data, path) => {
+      var zip = new JSZip();
+      zip.loadAsync(data).then((content) => {
+        const dataJsonFile = content.file("data.json")
+        if(!dataJsonFile) {
+          alert(`Could not load file: ${path}`)
+          return;
+        }
+
+        dataJsonFile.async("string").then((str) => {
+          const dataJson = JSON.parse(str)
+          this.userId.value = dataJson["user_id"]
+          this.checkUser(() => {
+
+            const videoName = dataJson["video_name"]
+            let found = false;
+            let videoIdx = 0
+            for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
+              if(this.videosToAnnotate[idx]["name"] == videoName) {
+                found = true;
+                videoIdx = idx;
+                break;
+              }
+            }
+            if(!found) {
+              alert(`Could not find name: ${name}`)
+              videoIdx = -1;
+              return;
+            }
+
+            let recs = []
+            for(const ann of dataJson["annotations"]) {
+              const path = ann["recording_path"]
+              const rec = content.files[`recordings/${path}`]
+              const x = rec.async("blob")
+              recs.push(x)
+            }
+            Promise.all(recs).then((blobs) => {
+              // populate the UI
+              this.openVideoByInfo(this.videosToAnnotate[videoIdx], () => {
+                // TODO: reverse iterate?
+                for(const idx in dataJson["annotations"]) {
+                  const blob = blobs[idx]
+                  const ann = dataJson["annotations"][idx]
+                  const data = {
+                    url: URL.createObjectURL(blob),
+                    ...ann,
+                  }
+                  this.addRecording(data)
+                }
+                this.profiencyScoreSelector.value = dataJson["proficiency"]["rating"]
+                this.proficiencyWhyText.value = dataJson["proficiency"]["why"]
+              }, true)
+            })
+          })
+        })
+      })
+    }
+
+    this.openAnnotationBtn.addEventListener("click", () => { 
+      let files = this.annotationFileSelector.files
+      if(files.length > 1) {
+        let errStr = "Please open only *one* file ending with .zip"
+        console.error(errStr)
+        alert(errStr)
+      }
+      this.openAnnotation(files[0].arrayBuffer(), files[0].name)
+    })
 
     this.initDrawCanvas()
     await this.initSettings()
@@ -1408,6 +1527,10 @@ class Narrator {
       now *= 0.001; // to seconds
       const dt = now - then;
       then = now;
+
+      // if(ctx.mode === MODE_REPLAY) {
+      // TODO: add paths here
+      // }
 
       if(ctx.activeScreen == MAIN_SCREEN) {
         ctx.draw.renderFrame(dt);

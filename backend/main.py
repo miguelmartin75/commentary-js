@@ -3,6 +3,7 @@ import json
 import os
 
 from collections import defaultdict
+from flask_cors import CORS, cross_origin
 from flask import (
     Flask,
     send_file,
@@ -21,11 +22,13 @@ app = Flask(
     __name__,
     static_folder=os.path.join(REPO_DIR, "static"),
 )
+cors = CORS(app)#, resources={r"/*": {"origins": "*"}})
 
 app_data = load_data()
 video_stream_cache = {}
 
 @app.route("/videos/<userid>")
+@cross_origin()
 def videos(userid):
     user_cat = app_data.users.get(userid, None)
     ret = {
@@ -47,6 +50,7 @@ def videos(userid):
 
 
 @app.route("/videos/", methods=["POST"])
+@cross_origin()
 def video_stream_path():
     data = json.loads(request.data)
     userid = data.get("userid", None)
@@ -82,13 +86,14 @@ def video_stream_path():
 
 
 @app.route("/narrator.js")
+@cross_origin()
 def main_src():
     return send_file(os.path.join(REPO_DIR, "src/narrator.js"))
 
-# @cross_origin()
-# @compress.compressed()
+
 @app.route("/", defaults={"id": None})
 @app.route("/<id>")
+@cross_origin()
 def index(id):
     return send_file(os.path.join(REPO_DIR, "src/index.html"))
 
