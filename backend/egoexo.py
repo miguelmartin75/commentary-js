@@ -9,7 +9,7 @@ from iopath.common.s3 import S3PathHandler
 pathmgr = PathManager()  # for downloading files
 pathmgr.register_handler(S3PathHandler(profile=None))
 
-USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_08042023.json"
+USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_08112023.json"
 METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/metadata.json"
 SELECTED_TAKES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/selected_takes.json"
 
