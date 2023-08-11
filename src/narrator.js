@@ -1277,9 +1277,9 @@ class Narrator {
       let infoText = document.createElement("div")
       infoText.className = "m-1 text-sm"
       if(x.events.length > 0) {
-        infoText.innerHTML = "Contains Stroke(s)"
+        infoText.innerHTML = "Contains Stroke"
       } else {
-        infoText.innerHTML = "No Stroke(s)"
+        infoText.innerHTML = "No Stroke"
       }
       disableFocusForClickable(infoText)
       node.appendChild(infoText)
