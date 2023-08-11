@@ -1133,6 +1133,8 @@ class Narrator {
       }
       if(this.isRecording) {
         this.mute()
+      } else if(this.draw.paths.length > 0) {
+        this.draw.paths = []
       }
       const vidCont = this.viewVideo.container.video
       this.addEvent({
@@ -1242,10 +1244,12 @@ class Narrator {
         if(this.currRecNode !== recNode && this.currRecNode) {
           this.currRecNode.pause()
           this.currRecNode.currentTime = 0
+          this.draw.paths = []
         }
         this.mode = MODE_REPLAY
         this.currRecNode = recNode
         this.replayDatum = x
+        this.pause()
         this.viewVideo.container.video.currentTime = recordTime
         this.updateTimeline()
       })
@@ -1257,20 +1261,28 @@ class Narrator {
       recNode.addEventListener("ended", () => {
         if(recNode === this.currRecNode) {
           this.mode = MODE_ANNOTATE
+          this.draw.paths = []
         }
       })
       replayButton.addEventListener("click", () => {
         if(this.isRecording || !this.viewVideo) {
           return;
         }
-        this.pause()
-        this.viewVideo.container.video.currentTime = recordTime
-        this.updateTimeline()
         recNode.currentTime = 0
         recNode.play()
       });
       disableFocusForClickable(replayButton)
       node.appendChild(replayButton)
+
+      let infoText = document.createElement("div")
+      infoText.className = "m-1 text-sm"
+      if(x.events.length > 0) {
+        infoText.innerHTML = "Contains Stroke(s)"
+      } else {
+        infoText.innerHTML = "No Stroke(s)"
+      }
+      disableFocusForClickable(infoText)
+      node.appendChild(infoText)
 
       // TODO: add play event for recNode
       disableFocusForClickable(recNode)
@@ -1531,9 +1543,32 @@ class Narrator {
       const dt = now - then;
       then = now;
 
-      // if(ctx.mode === MODE_REPLAY && ctx.currRecNode) {
-      // TODO: add paths here
-      // }
+      if(ctx.mode === MODE_REPLAY && ctx.currRecNode) {
+        if(isPlaying(ctx.currRecNode)) {
+          ctx.draw.paths = []  // TODO: fixme this is not efficient
+          const recNodeT = ctx.currRecNode.currentTime * 1000
+          const replayDatum = ctx.replayDatum
+          const startGlobal = replayDatum.start_global_time
+          for(const event of replayDatum.events) {
+            if(event.type === "path") {
+              const eventRelT = event.global_time - startGlobal
+              if(event.action === "clear" && recNodeT > eventRelT) {
+                ctx.draw.paths = []
+              } else {
+                for(const path of event.paths) {
+                  const t = path.to.t
+                  const relT = t - startGlobal
+                  if(recNodeT > relT) {
+                    ctx.draw.paths.push(path)
+                  } else {
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
       if(ctx.activeScreen == MAIN_SCREEN) {
         ctx.draw.renderFrame(dt);
