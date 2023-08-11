@@ -240,6 +240,24 @@ class Video {
     }).catch(err => {
       console.error(err)
     });
+
+    this.seekCbs = []
+
+    video.addEventListener("canplay", () => {
+      for(const x of this.seekCbs) {
+        if(x.t === this.video.currentTime) {
+          x.cb()
+        }
+      }
+      this.seekCbs = []
+    })
+  }
+
+  seek(t, onReady) {
+    this.video.currentTime = t
+    if(onReady) {
+      this.seekCbs.push({t: t, cb: onReady})
+    }
   }
 
   play() {
@@ -1011,14 +1029,16 @@ class Narrator {
       if(this.playDisabled) return;
       this.sliderChanging = false;
       if(this.viewVideo) {
-        this.viewVideo.container.video.currentTime = this.playBar.value / 1000;
+        this.viewVideo.container.seek(this.playBar.value / 1000, () => {
+          this.updateTimeline()
+        });
         this.updateTimeline()
       }
     });
     this.playBar.addEventListener("mousemove", () => {
       if(this.playDisabled) return;
       if(this.sliderChanging && this.viewVideo) {
-        this.viewVideo.container.video.currentTime = this.playBar.value / 1000;
+        this.viewVideo.container.seek(this.playBar.value / 1000)
         this.updateTimeline()
       }
     });
@@ -1246,12 +1266,19 @@ class Narrator {
           this.currRecNode.currentTime = 0
           this.draw.paths = []
         }
+        if(recordTime !== this.viewVideo.container.video.currentTime) {
+          recNode.pause()
+          recNode.currentTime = 0
+        }
         this.mode = MODE_REPLAY
         this.currRecNode = recNode
         this.replayDatum = x
         this.pause()
-        this.viewVideo.container.video.currentTime = recordTime
-        this.updateTimeline()
+        this.viewVideo.container.seek(recordTime, () => {
+          this.updateTimeline()
+          recNode.play()
+          recNode.currentTime = 0
+        })
       })
       recNode.addEventListener("pause", () => {
         if(recNode === this.currRecNode) {
@@ -1269,7 +1296,7 @@ class Narrator {
           return;
         }
         recNode.currentTime = 0
-        recNode.play()
+        recNode.play().catch(() => {})
       });
       disableFocusForClickable(replayButton)
       node.appendChild(replayButton)
