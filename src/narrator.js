@@ -37,6 +37,18 @@ const timeNow = () => {
   return performance.now()
 }
 
+const addStyle = (el, styleClasses) => {
+    for(const clazz of styleClasses.split(" ")) {
+      el.classList.add(clazz)
+    }
+}
+
+const removeStyle = (el, styleClasses) => {
+    for(const clazz of styleClasses.split(" ")) {
+      el.classList.remove(clazz)
+    }
+}
+
 const createOption = (label, value, isSelected, parentNode) => {
   const node = document.createElement("option")
   node.innerHTML = label
@@ -1124,9 +1136,7 @@ class Narrator {
         this.isRecording = true
         this.recordStartAppTime = timeNow()
         this.recordTime = this.viewVideo.container.video.currentTime
-        for(const clazz of RECORDING_BORDER_CLASSES.split(" ")) {
-          this.recordSideBar.classList.add(clazz)
-        }
+        addStyle(this.recordSideBar, RECORDING_BORDER_CLASSES)
         this.recordBtn.innerHTML = "Stop Recording"
         if(!ENABLE_REPLAY) {
           this.playDisabled = true
@@ -1136,9 +1146,7 @@ class Narrator {
         // TODO: set style disabled
         this.recordDisabled = true
         this.recordBtn.innerHTML = "Record"
-        for(const clazz of RECORDING_BORDER_CLASSES.split(" ")) {
-          this.recordSideBar.classList.remove(clazz)
-        }
+        removeStyle(this.recordSideBar, RECORDING_BORDER_CLASSES)
       }
     }
     this.pause = () => {
@@ -1300,6 +1308,29 @@ class Narrator {
       });
       disableFocusForClickable(replayButton)
       node.appendChild(replayButton)
+
+      // if(false) { // TODO: for proficiency
+      //   let checkboxDiv = document.createElement("div")
+      //   for(const tag of ["Good Execution", "Tip for Improvement"]) {
+      //     const nospaceTag = tag.split(" ").join("_")
+      //     let checkbox = document.createElement("input")
+      //     checkbox.type = "checkbox"
+      //     checkbox.value = nospaceTag
+      //     checkbox.name = nospaceTag
+      //     checkbox.id = nospaceTag
+      //     let label = document.createElement("label")
+      //     label.htmlFor = nospaceTag
+      //     label.innerHTML = tag
+
+      //     checkbox.className = "ml-2 text-sm font-medium"
+      //     label.className = "m-2 border-gray-300 rounded"
+      //     let container = document.createElement("div")
+      //     container.appendChild(checkbox)
+      //     container.appendChild(label)
+      //     checkboxDiv.appendChild(container)
+      //   }
+      //   node.appendChild(checkboxDiv)
+      // }
 
       let infoText = document.createElement("div")
       infoText.className = "m-1 text-sm"
