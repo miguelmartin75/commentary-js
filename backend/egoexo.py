@@ -10,8 +10,8 @@ pathmgr = PathManager()  # for downloading files
 pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_08112023.json"
-METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/metadata.json"
-SELECTED_TAKES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/pilot/selected_takes.json"
+METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata.json"
+SELECTED_TAKES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batch0.json"
 
 
 @dataclass
@@ -54,8 +54,11 @@ def load_data():
             continue
         name = x["take_name"]
         task_cat = x["task_cat"]
-        if name not in selected_takes[task_cat]:
-            continue
+        try:
+            if name not in selected_takes[task_cat]:
+                continue
+        except:
+            breakpoint()
 
         by_task[task_cat].append(x)
         assert name not in by_name
