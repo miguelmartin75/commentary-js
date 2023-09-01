@@ -162,6 +162,21 @@ class Recorder {
     return Object.keys(this.recordingsById).length > 0
   }
 
+  addRecording(url, blob, callCb, data) {
+    const curr = {url: url, blob: blob, id: this.currentId}
+    if(data) {
+      curr.data = data
+    }
+    this.recordingsById[this.currentId] = curr
+    this.currentBlobs = []
+    this.currentId += 1
+
+    
+    if(callCb) {
+      this.newRecordingCb(curr)
+    }
+  }
+
   setup(stream, newRecordingCb, hasVideo) {
     if(!stream) {
       return "no stream given"
@@ -180,12 +195,7 @@ class Recorder {
     this.mediaRecorder.addEventListener('stop', () => {
       const blob = new Blob(this.currentBlobs, { type: recordingType })
       const url = URL.createObjectURL(blob)
-      const curr = {url: url, blob: blob, id: this.currentId}
-      this.recordingsById[this.currentId] = curr
-      this.currentBlobs = []
-      this.currentId += 1
-
-      this.newRecordingCb(curr)
+      this.addRecording(url, blob, true)
     })
 
     this.mediaRecorder.addEventListener('dataavailable', event => {
@@ -1560,7 +1570,6 @@ class Narrator {
             Promise.all(recs).then((blobs) => {
               // populate the UI
               this.openVideoByInfo(this.videosToAnnotate[videoIdx], () => {
-                // TODO: reverse iterate?
                 for(const idx in dataJson["annotations"]) {
                   const blob = blobs[idx]
                   const ann = dataJson["annotations"][idx]
@@ -1568,6 +1577,7 @@ class Narrator {
                     url: URL.createObjectURL(blob),
                     ...ann,
                   }
+                  this.recorder.addRecording(data, blob, false, ann)
                   this.addRecording(data)
                 }
                 this.profiencyScoreSelector.value = dataJson["proficiency"]["rating"]
