@@ -11,12 +11,13 @@ pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_08112023.json"
 METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata.json"
-SELECTED_TAKES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batch0.json"
+BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230904.json"
 
 
 @dataclass
 class EgoExoData:
     users: Dict[str, str]
+    batches: Dict[str, str]
     videos_by_name: Dict[str, Dict[str, Any]]
     videos_by_task: Dict[str, List[Dict[str, Any]]]
 
@@ -44,7 +45,7 @@ def to_task_cat(tid):
 def load_data():
     users = json.load(pathmgr.open(USER_PATH))
     data = json.load(pathmgr.open(METADATA_PATH))
-    selected_takes = json.load(pathmgr.open(SELECTED_TAKES_PATH))
+    batches = json.load(pathmgr.open(BATCHES_PATH))
     print(f"Loaded: {len(data)} takes")
     by_task = defaultdict(list)
     by_name = {}
@@ -54,11 +55,6 @@ def load_data():
             continue
         name = x["take_name"]
         task_cat = x["task_cat"]
-        try:
-            if name not in selected_takes[task_cat]:
-                continue
-        except:
-            breakpoint()
 
         by_task[task_cat].append(x)
         assert name not in by_name
@@ -80,8 +76,15 @@ def load_data():
     by_name[take_name] = take_data
     by_task[task_name] = [take_data]
 
+    batches_by_video_name = {
+        v: k for k, temp in batches.items() 
+        for _, vs in temp.items()
+        for v in vs
+    }
+
     return EgoExoData(
         users=users,
+        batches=batches_by_video_name,
         videos_by_name=by_name,
         videos_by_task=by_task,
     )

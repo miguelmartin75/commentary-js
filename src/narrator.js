@@ -162,6 +162,21 @@ class Recorder {
     return Object.keys(this.recordingsById).length > 0
   }
 
+  addRecording(url, blob, callCb, data) {
+    const curr = {url: url, blob: blob, id: this.currentId}
+    if(data) {
+      curr.data = data
+    }
+    this.recordingsById[this.currentId] = curr
+    this.currentBlobs = []
+    this.currentId += 1
+
+    
+    if(callCb) {
+      this.newRecordingCb(curr)
+    }
+  }
+
   setup(stream, newRecordingCb, hasVideo) {
     if(!stream) {
       return "no stream given"
@@ -180,12 +195,7 @@ class Recorder {
     this.mediaRecorder.addEventListener('stop', () => {
       const blob = new Blob(this.currentBlobs, { type: recordingType })
       const url = URL.createObjectURL(blob)
-      const curr = {url: url, blob: blob, id: this.currentId}
-      this.recordingsById[this.currentId] = curr
-      this.currentBlobs = []
-      this.currentId += 1
-
-      this.newRecordingCb(curr)
+      this.addRecording(url, blob, true)
     })
 
     this.mediaRecorder.addEventListener('dataavailable', event => {
@@ -642,6 +652,7 @@ class Narrator {
     this.userId = document.getElementById("username")
     this.expertiseSelector = document.getElementById("expertise")
     this.videoSelector = document.getElementById("videoSelect")
+    this.batchSelector = document.getElementById("batchSelect")
     this.startAnnotatingBtn = document.getElementById("startAnnotatingBtn")
     this.nextVideoBtn = document.getElementById("nextVideoBtn")
     this.prevVideoBtn = document.getElementById("prevVideoBtn")
@@ -663,6 +674,7 @@ class Narrator {
     }
 
     this.metadata = {}
+    this.videosByBatch = {}
     this.devById = {}
     this.videoName = null
     this.userIdValid = false
@@ -677,6 +689,7 @@ class Narrator {
       return true;
     }
     this.updateVideoNameLabel = () => {
+      // TODO
       if(this.videosToAnnotate.length > 0) {
         this.videoNameLabel.innerHTML = `${this.videoName} (${this.videoIdx + 1} / ${this.videosToAnnotate.length})`
       } else {
@@ -712,10 +725,12 @@ class Narrator {
           alert(`Could not load video '${this.videoSelector.value}'\nPlease report this the workplace group.`)
           return;
         }
+        const batchKey = this.batchSelector.value
+        const batchVideos = this.videosByBatch[batchKey]
         if(this.openVideo(x["path"], name, force)) {
           let found = false;
-          for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
-            if(this.videosToAnnotate[idx]["name"] == name) {
+          for(var idx = 0; idx < batchVideos.length; ++idx) {
+            if(batchVideos[idx]["name"] == name) {
               found = true;
               this.videoIdx = idx;
               break;
@@ -769,11 +784,13 @@ class Narrator {
     }
 
     this.nextVideo = () => {
+      // TODO
       let idx = (this.videoIdx + 1) % this.videosToAnnotate.length
       this.openVideoByInfo(this.videosToAnnotate[idx])
     }
 
     this.prevVideo = () => {
+      // TODO
       let idx = (this.videoIdx - 1) % this.videosToAnnotate.length
       this.openVideoByInfo(this.videosToAnnotate[idx])
     }
@@ -873,20 +890,21 @@ class Narrator {
         alert("Please select a video")
         return;
       }
+      // TODO
       if(this.videosToAnnotate.length === 0) {
         alert("No videos to annotate. Please report bug to workplace group.")
         return;
       }
 
-
       this.openVideoByInfo(this.videosToAnnotate[this.videoSelector.selectedIndex - 1])
     });
 
-    // this.categories = {}
     this.updateVideosForExpertise = () => {
       this.videoSelector.innerHTML = "";
+      const batchKey = this.batchSelector.value
       let catName = this.metadata["category"]
-      let vids = this.metadata["videos_by_category"][catName];
+      let vids = this.videosByBatch[batchKey]
+
       this.videosToAnnotate = []
       createOption("None", "_none", true, this.videoSelector)
       for(let vid of vids) {
@@ -894,8 +912,12 @@ class Narrator {
         this.videosToAnnotate.push(vid)
       }
     }
-    this.expertiseSelector.addEventListener("change", this.updateVideosForExpertise)
 
+    this.updateBatch = () => {
+      this.updateVideosForExpertise()
+    }
+    this.batchSelector.addEventListener("change", this.updateBatch)
+    this.expertiseSelector.addEventListener("change", this.updateBatch)
     this.checkUser = (onReady) => {
       const value = deepCopy(this.userId.value)
       if(value.length === 0) {
@@ -904,14 +926,28 @@ class Narrator {
         this.userId.classList.add(INVALID_TEXT_CLASS)
         return;
       }
+      this.batchSelector.innerHTML = "";
+
       fetch(`/videos/${value}`).then(r => r.json()).then(x => {
         this.metadata = x
+        console.log(this.metadata)
+        this.videosByBatch = {}
+        let cat = this.metadata["category"]
+        for(const vid of this.metadata["videos_by_category"][cat]) {
+          const b = vid["batch"]
+          if(!(b in this.videosByBatch)) {
+            this.videosByBatch[b] = []
+          }
+          this.videosByBatch[b].push(vid)
+        }
+
         if(!x["valid"]) {
           this.userIdValid = false
           this.userId.classList.remove(VALID_TEXT_CLASS)
           this.userId.classList.add(INVALID_TEXT_CLASS)
           this.expertiseSelector.innerHTML = "";
           this.videoSelector.innerHTML = "";
+          this.batchSelector.innerHTML = "";
           this.videoName = null
         } else {
           this.userIdValid = true
@@ -922,6 +958,20 @@ class Narrator {
           this.expertiseSelector.innerHTML = "";
           const catName = x["category"]
           createOption(catName, catName, false, this.expertiseSelector)
+
+          for(const batch in this.videosByBatch) {
+            let label = batch
+            if(batch !== 'pilot' && batch !== 'None') {
+              let bn = parseInt(batch, 10)
+              let startWeek = bn * 2 + 1
+              let endWeek = (bn + 1) * 2 + 1
+              label = `Week ${startWeek}-${endWeek}`
+            } else if(batch === 'pilot') {
+              label = 'Week 0 (Pilot)'
+            }
+            createOption(label, batch, false, this.batchSelector)
+          }
+
           this.expertiseSelector.value = catName
           this.updateVideosForExpertise()
           if(onReady) { 
@@ -1560,7 +1610,6 @@ class Narrator {
             Promise.all(recs).then((blobs) => {
               // populate the UI
               this.openVideoByInfo(this.videosToAnnotate[videoIdx], () => {
-                // TODO: reverse iterate?
                 for(const idx in dataJson["annotations"]) {
                   const blob = blobs[idx]
                   const ann = dataJson["annotations"][idx]
@@ -1568,6 +1617,7 @@ class Narrator {
                     url: URL.createObjectURL(blob),
                     ...ann,
                   }
+                  this.recorder.addRecording(data, blob, false, ann)
                   this.addRecording(data)
                 }
                 this.profiencyScoreSelector.value = dataJson["proficiency"]["rating"]
