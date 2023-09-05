@@ -15,7 +15,6 @@ from backend.presign_utilities import create_presigned_url_from_path
 from backend.egoexo import load_data
 
 S3_EXPIRATION_SEC = 28800
-# S3_EXPIRATION_SEC = 100
 CACHE_SEC_THRESHOLD = S3_EXPIRATION_SEC // 2
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 app = Flask(
@@ -39,6 +38,7 @@ def videos(userid):
                 {
                     "name": x["take_name"],
                     "task": x["task_name"],
+                    "batch": app_data.batches.get(x["take_name"], "None"),
                 }
                 for x in xs
             ]
