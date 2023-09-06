@@ -11,7 +11,7 @@ pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_08112023.json"
 METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata.json"
-BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230904.json"
+BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230905.json"
 
 
 @dataclass
