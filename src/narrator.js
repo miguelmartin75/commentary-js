@@ -959,15 +959,16 @@ class Narrator {
           const catName = x["category"]
           createOption(catName, catName, false, this.expertiseSelector)
 
+          let startIdx = 0
           for(const batch in this.videosByBatch) {
             let label = batch
             if(batch !== 'pilot' && batch !== 'None') {
               let bn = parseInt(batch, 10)
-              let startWeek = bn * 2 + 1
-              let endWeek = (bn + 1) * 2 + 1
-              label = `Week ${startWeek}-${endWeek}`
+              const endIdx = startIdx + this.videosByBatch[batch].length
+              label = `Videos ${startIdx + 1}-${endIdx}`
+              startIdx = endIdx
             } else if(batch === 'pilot') {
-              label = 'Week 0 (Pilot)'
+              label = 'Pilot Videos'
             }
             createOption(label, batch, false, this.batchSelector)
           }
