@@ -1588,13 +1588,25 @@ class Narrator {
             const videoName = dataJson["video_name"]
             let found = false;
             let videoIdx = 0
-            for(var idx = 0; idx < this.videosToAnnotate.length; ++idx) {
-              if(this.videosToAnnotate[idx]["name"] == videoName) {
-                found = true;
-                videoIdx = idx;
+            let batch = null
+            for(const b in this.videosByBatch) {
+              for(var idx = 0; idx < this.videosByBatch[b].length; ++idx) {
+                if(this.videosByBatch[b][idx]["name"] == videoName) {
+                  found = true;
+                  videoIdx = idx;
+                  batch = b;
+                  break;
+                }
+              }
+              if(found) {
                 break;
               }
             }
+            if(batch) {
+              this.batchSelector.value = batch
+              this.updateBatch()
+            }
+
             if(!found) {
               alert(`Could not find name: ${name}`)
               videoIdx = -1;
