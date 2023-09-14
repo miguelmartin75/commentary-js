@@ -162,10 +162,11 @@ class Recorder {
     return Object.keys(this.recordingsById).length > 0
   }
 
-  addRecording(url, blob, callCb, data) {
+  addRecording(url, blob, callCb, obj, ann) {
     const curr = {url: url, blob: blob, id: this.currentId}
-    if(data) {
-      curr.data = data
+    if(obj || ann) {
+      curr.data = ann
+      obj.id = curr.id
     }
     this.recordingsById[this.currentId] = curr
     this.currentBlobs = []
@@ -1630,7 +1631,7 @@ class Narrator {
                     url: URL.createObjectURL(blob),
                     ...ann,
                   }
-                  this.recorder.addRecording(data, blob, false, ann)
+                  this.recorder.addRecording(data.url, blob, false, data, ann)
                   this.addRecording(data)
                 }
                 this.profiencyScoreSelector.value = dataJson["proficiency"]["rating"]
