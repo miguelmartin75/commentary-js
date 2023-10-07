@@ -966,12 +966,13 @@ class Narrator {
             if(batch !== 'pilot' && batch !== 'None') {
               let bn = parseInt(batch, 10)
               const endIdx = startIdx + this.videosByBatch[batch].length
-              label = `Videos ${startIdx + 1}-${endIdx}`
+              label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos)`
               startIdx = endIdx
+              createOption(label, batch, false, this.batchSelector)
             } else if(batch === 'pilot') {
               label = 'Pilot Videos'
+              createOption(label, batch, false, this.batchSelector)
             }
-            createOption(label, batch, false, this.batchSelector)
           }
 
           this.expertiseSelector.value = catName

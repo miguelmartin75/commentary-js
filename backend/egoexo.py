@@ -10,8 +10,8 @@ pathmgr = PathManager()  # for downloading files
 pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_09202023.json"
-METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata_230913.json"
-BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230913.json"
+METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata_231007.json"
+BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231007.json"
 
 
 @dataclass
@@ -61,6 +61,9 @@ def load_data():
         by_name[name] = x
 
     for cat in by_task.keys():
+        if cat is None:
+            print("No category, skipping", len(by_task[cat]))
+            continue
         user_id = cat.split(" ")[0].lower() + "_test_meta_"
         users[user_id] = cat
         print(user_id)
