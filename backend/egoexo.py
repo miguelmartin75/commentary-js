@@ -10,16 +10,21 @@ pathmgr = PathManager()  # for downloading files
 pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_09202023.json"
-METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata_231007.json"
-BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231007.json"
-OLD_BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230913.json"
+METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata_231107.json"
+BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231107.json"
+
+OLD_BATCHES = {
+    # key == x batches ago
+    2: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230913.json",
+    1: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231007.json"
+}
 
 
 @dataclass
 class EgoExoData:
     users: Dict[str, str]
     batches: Dict[str, str]
-    old_batches: Dict[str, str]
+    old_batches_by_prev_count: Dict[int, Dict[str, str]]
     videos_by_name: Dict[str, Dict[str, Any]]
     videos_by_task: Dict[str, List[Dict[str, Any]]]
 
@@ -48,7 +53,17 @@ def load_data():
     users = json.load(pathmgr.open(USER_PATH))
     data = json.load(pathmgr.open(METADATA_PATH))
     batches = json.load(pathmgr.open(BATCHES_PATH))
-    old_batches = json.load(pathmgr.open(OLD_BATCHES_PATH))
+
+    old_batches_by_prev_count = {}
+    for k, v in OLD_BATCHES.items():
+        ob = json.load(pathmgr.open(v))
+        old_batches_by_prev_count[k] = {
+            v: k for k, temp in ob.items() 
+            for _, vs in temp.items()
+            for v in vs
+        }
+        
+
     print(f"Loaded: {len(data)} takes")
     by_task = defaultdict(list)
     by_name = {}
@@ -87,16 +102,11 @@ def load_data():
         for _, vs in temp.items()
         for v in vs
     }
-    old_batches_by_video_name = {
-        v: k for k, temp in old_batches.items() 
-        for _, vs in temp.items()
-        for v in vs
-    }
 
     return EgoExoData(
         users=users,
         batches=batches_by_video_name,
-        old_batches=old_batches_by_video_name,
+        old_batches_by_prev_count=old_batches_by_prev_count,
         videos_by_name=by_name,
         videos_by_task=by_task,
     )
