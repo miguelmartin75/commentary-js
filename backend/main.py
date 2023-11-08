@@ -39,7 +39,8 @@ def videos(userid):
                     "name": x["take_name"],
                     "task": x["task_name"],
                     "batch": app_data.batches.get(x["take_name"], "None"),
-                    "in_old_batch": x["take_name"] in app_data.old_batches,
+                    "in_annotated_batch": x["take_name"] in app_data.old_batches_by_prev_count[2],
+                    "in_annotating_batch": x["take_name"] in app_data.old_batches_by_prev_count[1],
                 }
                 for x in xs
             ]

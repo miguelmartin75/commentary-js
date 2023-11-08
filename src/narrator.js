@@ -964,14 +964,17 @@ class Narrator {
           for(const batch in this.videosByBatch) {
             let label = batch
             const batchData = this.videosByBatch[batch]
-            const isOldBatch = batchData[0]["in_old_batch"]
+            const isOldBatch = batchData[0]["in_annotated_batch"]
+            const isNewBatch = batchData[0]["in_annotating_batch"]
             if(batch !== 'pilot' && batch !== 'None') {
               let bn = parseInt(batch, 10)
               const endIdx = startIdx + this.videosByBatch[batch].length
               if(isOldBatch) {
                 label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos)`
-              } else {
+              } else if(isNewBatch) {
                 label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW**`
+              } else {
+                label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW NOVEMBER**`
               }
               startIdx = endIdx
               createOption(label, batch, false, this.batchSelector)
