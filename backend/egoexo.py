@@ -10,13 +10,14 @@ pathmgr = PathManager()  # for downloading files
 pathmgr.register_handler(S3PathHandler(profile=None))
 
 USER_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/users_09202023.json"
-METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata_231107.json"
-BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231107.json"
+METADATA_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/metadata_240209.json"
+BATCHES_PATH = "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_240209.json"
 
 OLD_BATCHES = {
     # key == x batches ago
-    2: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230913.json",
-    1: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231007.json"
+    3: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_230913.json",
+    2: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231007.json",
+    1: "s3://ego4d-consortium-sharing/egoexo/expert_commentary/batches/batches_231107.json",
 }
 
 

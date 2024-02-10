@@ -961,6 +961,7 @@ class Narrator {
           createOption(catName, catName, false, this.expertiseSelector)
 
           let startIdx = 0
+          var seenLatest = false
           for(const batch in this.videosByBatch) {
             let label = batch
             const batchData = this.videosByBatch[batch]
@@ -974,7 +975,12 @@ class Narrator {
               } else if(isNewBatch) {
                 label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW**`
               } else {
-                label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW NOVEMBER**`
+                if (seenLatest) {
+                  label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW 2024**`
+                } else {
+                  label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW 2024 - ANNOTATE THIS**`
+                  seenLatest = true;
+                }
               }
               startIdx = endIdx
               createOption(label, batch, false, this.batchSelector)
