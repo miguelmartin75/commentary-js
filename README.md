@@ -6,6 +6,13 @@ to JavaScript.
 
 ## setup
 
+### data
+
+TODO
+
+### hosting
+
+Use nvm to manage node (`nvm use stable`), or use bun instead of npm.
 ```
 npm install
 ```
@@ -18,17 +25,10 @@ conda activate narrator_js
 pip install flask boto3 iopath
 ```
 
-## run
-
-Please setup server beforehand.
-
+run the server:
 ```
 npm run dev
 ```
-
-# TODOs
-
-See project: https://github.com/users/miguelmartin75/projects/2
 
 # included deps
 
