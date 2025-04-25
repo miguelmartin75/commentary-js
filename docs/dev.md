@@ -1,4 +1,4 @@
-# structure
+# Code Structure
 - `src/commentary.js` contains all the code 
     - `App` class contains the logic for perform commentary
         - `init()` initializes the UI, setups up event listeners & state for it
@@ -12,7 +12,7 @@
 - `src/style.css` a post-css file for tailwind-css. The css file is generated
   to `static`
 
-# dependencies
+# Dependencies
 
 The following are included in the repository:
 - https://github.com/Stuk/jszip/ ([raw file](https://raw.githubusercontent.com/eligrey/FileSaver.js/master/dist/FileSaver.min.js))

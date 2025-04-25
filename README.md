@@ -5,8 +5,9 @@ Try it [yourself](commentaryjs.miguel-martin.com) with user id
 
 ![screenshot](./docs/screenshot.jpg)
 
-Commentary JS is video annotation tool that enables you to perform audio commentary on top of
-videos, optionally with spatial drawings. A variant of this tool was used for
+Commentary JS is video annotation tool that enables you to perform audio
+commentary on top of videos, optionally with spatial drawings and video
+recording. A variant of this tool was used for
 [Ego-Exo4D](https://docs.ego-exo4d-data.org/)'s [Expert
 Commentary](https://docs.ego-exo4d-data.org/annotations/expert_commentary/)
 annotations.
@@ -24,15 +25,23 @@ The tech-stack is simple:
 
 - https://github.com/ChanganVR
 
-## setup
+# Setup
 
-### data
+If you want to use this tool for your own data, you will need to 
 
-You will need to:
+## Data
+
+Steps:
 1. Have S3-compatible storage somewhere, e.g. AWS S3, Digitial Ocean Spaces, etc.
-2. Generate metadata, see [backend/data.py](./backend/data.py)'s `create_sample_data` function to see what is expected.
+2. Configure your environment, see [backend/constants.py](./backend/constants.py) for what's required.
+3. Generate metadata, see [backend/data.py](./backend/data.py)'s `create_sample_data` function to see what is expected.
+    - The
+      [`scripts/upload_sample_videos.sh`](./scripts/upload_sample_videos.sh) is
+      a script to example video data onto DigitalOcean spaces.
+    - You can run `python backend/data.py` to generate sample metadata on your S3 storage.
 
-### backend
+
+## Backend
 
 Use nvm to manage node (`nvm use stable`), or use bun instead of npm.
 ```
@@ -52,10 +61,10 @@ run the server:
 npm run dev
 ```
 
-### deployment
+## Deployment
 
 There is example Terraform configuration in [./tf](./tf) for Digital Ocean.
 
-# dev docs
+# Dev Docs
 
-See [docs/dev.md](./docs/dev.md)
+See [docs/dev.md](./docs/dev.md) for setup
