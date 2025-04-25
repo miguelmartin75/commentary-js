@@ -3,7 +3,7 @@
 Try it [yourself](commentaryjs.miguel-martin.com) with user id
 "kenji" (yes this is referencing the [chef](https://www.youtube.com/@JKenjiLopezAlt)). Use Chrome.
 
-![screenshot](./docs/screenshot.png)
+![screenshot](./docs/screenshot.jpg)
 
 Commentary JS is video annotation tool that enables you to perform audio commentary on top of
 videos, optionally with spatial drawings. A variant of this tool was used for
@@ -12,7 +12,7 @@ Commentary](https://docs.ego-exo4d-data.org/annotations/expert_commentary/)
 annotations.
 
 This is a port of the
-[epic-kitchens-100-commentary](https://github.com/epic-kitchens/epic-kitchens-100-commentary)
+[epic-kitchens-100-narrator](https://github.com/epic-kitchens/epic-kitchens-100-narrator)
 to JavaScript. 
 
 The tech-stack is simple:
