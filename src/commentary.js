@@ -33,7 +33,6 @@ const deepCopy = (x) => {
 }
 
 const timeNow = () => {
-  //return Date.now()
   return performance.now()
 }
 
@@ -342,8 +341,10 @@ class DrawCtx {
   }
 
   setup(canvas) {
-    const gl = canvas.getContext("2d");
     this.canvas = canvas;
+
+    // NOTE(miguelmartin): we're not actually using webgl, it's a canvas ;)
+    const gl = canvas.getContext("2d");
     if (gl === null) {
       return "Unable to initialize canvas. Your browser or machine may not support it.";
     }
@@ -357,7 +358,6 @@ class DrawCtx {
         }
       }
     });
-
 
     // TODO: configure or dynamic
     return null;
@@ -931,9 +931,12 @@ class Narrator {
 
       fetch(`/videos/${value}`).then(r => r.json()).then(x => {
         this.metadata = x
-        console.log(this.metadata)
+        // console.log(this.metadata)
         this.videosByBatch = {}
         let cat = this.metadata["category"]
+        if(!cat) {
+          return;
+        }
         for(const vid of this.metadata["videos_by_category"][cat]) {
           const b = vid["batch"]
           if(!(b in this.videosByBatch)) {
@@ -974,13 +977,6 @@ class Narrator {
                 label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos)`
               } else if(isNewBatch) {
                 label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW**`
-              } else {
-                if (seenLatest) {
-                  label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW 2024**`
-                } else {
-                  label = `${bn}: Videos ${startIdx + 1}-${endIdx} (${endIdx- startIdx} videos) **NEW 2024 - ANNOTATE THIS**`
-                  seenLatest = true;
-                }
               }
               startIdx = endIdx
               createOption(label, batch, false, this.batchSelector)

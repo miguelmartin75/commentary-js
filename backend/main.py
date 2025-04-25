@@ -11,8 +11,8 @@ from flask import (
     jsonify,
 )
 
-from backend.presign_utilities import create_presigned_url_from_path
-from backend.egoexo import load_data
+from backend.s3 import create_presigned_url_from_path
+from backend.data import load_data
 
 S3_EXPIRATION_SEC = 28800
 CACHE_SEC_THRESHOLD = S3_EXPIRATION_SEC // 2
@@ -29,23 +29,28 @@ video_stream_cache = {}
 @app.route("/videos/<userid>")
 @cross_origin()
 def videos(userid):
+    print("/videos", userid)
     user_cat = app_data.users.get(userid, None)
     ret = {
         "valid": userid in app_data.users,
         "category": user_cat,
         "videos_by_category": {
-            cat_name: [
+            task_name: [
                 {
-                    "name": x["take_name"],
-                    "task": x["task_name"],
-                    "batch": app_data.batches.get(x["take_name"], "None"),
-                    "in_annotated_batch": x["take_name"] in app_data.old_batches_by_prev_count[2],
-                    "in_annotating_batch": x["take_name"] in app_data.old_batches_by_prev_count[1],
+                    "name": x["name"],
+                    "task": x["task"],
+                    "batch": app_data.batches.get(x["name"], "None"),
+                    "in_annotated_batch": (
+                        x["name"] in app_data.old_batches_by_prev_count.get(2, [])
+                    ),
+                    "in_annotating_batch": (
+                        x["name"] in app_data.old_batches_by_prev_count.get(1, [])
+                    ),
                 }
                 for x in xs
             ]
-            for cat_name, xs in app_data.videos_by_task.items()
-            if cat_name == user_cat
+            for task_name, xs in app_data.videos_by_task.items()
+            if task_name == user_cat
         }
     }
     return jsonify(ret)
@@ -64,21 +69,17 @@ def video_stream_path():
         key = (userid, video_name)
         t_now = time.time()
         if key in video_stream_cache:
-            print("using cache", key)
             t_delta = t_now - video_stream_cache[key]["time"]
             if abs(t_delta) < CACHE_SEC_THRESHOLD:
                 return video_stream_cache[key]["result"]
             
 
-        print("video_name=", video_name)
-        take = app_data.videos_by_name.get(video_name, None)
+        v = app_data.videos_by_name.get(video_name, None)
         https_path = None
-        if take is not None:
-            print("take=", take)
-            s3_path = take["s3_path"]
+        if v is not None:
+            s3_path = v["s3_path"]
             https_path = create_presigned_url_from_path(s3_path, expiration=S3_EXPIRATION_SEC)
         result = jsonify({"path": https_path})
-        print("putting into", key)
         video_stream_cache[key] = {
             "result": result,
             "time": t_now,
@@ -87,10 +88,10 @@ def video_stream_path():
 
 
 
-@app.route("/narrator.js")
+@app.route("/commentary.js")
 @cross_origin()
 def main_src():
-    return send_file(os.path.join(REPO_DIR, "src/narrator.js"))
+    return send_file(os.path.join(REPO_DIR, "src/commentary.js"))
 
 
 @app.route("/", defaults={"id": None})

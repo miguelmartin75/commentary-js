@@ -5,7 +5,7 @@
   "main": "narrator.js",
   "scripts": {
     "build": "postcss src/style.css -o static/style.css",
-    "dev": "npm run build && flask --app backend/main.py --debug run --port 3333",
+    "dev": "npm run build && flask --app backend/main.py --debug run --port 5001",
     "prod": "npm run build && flask --app backend/main.py run"
   },
   "keywords": [],
