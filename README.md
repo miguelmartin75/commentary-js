@@ -1,7 +1,8 @@
-# narrator_js
+# Commentary JS
 
+A video annotation tool that enables you to perform commentary.
 A port of the
-[epic-kitchens-100-narrator](https://github.com/epic-kitchens/epic-kitchens-100-narrator)
+[epic-kitchens-100-commentary](https://github.com/epic-kitchens/epic-kitchens-100-commentary)
 to JavaScript. Try it [yourself](commentaryjs.miguel-martin.com) with user id "kenji".
 
 TODO: screenshot
@@ -29,8 +30,8 @@ npm install
 server:
 
 ```
-conda create -n narrator_js python=3.11 -y
-conda activate narrator_js
+conda create -n commentary_js python=3.11 -y
+conda activate commentary_js
 pip install flask boto3 iopath
 ```
 
@@ -42,14 +43,16 @@ npm run dev
 # dev docs
 
 ## structure
-- `src/narrator.js` contains all the code 
-    - `Narrator` class contains the logic for the narrator
+- `src/commentary.js` contains all the code 
+    - `App` class contains the logic for perform commentary
         - `init()` initializes the UI, setups up event listeners & state for it
         - `setup()` creates the recorder and canvas
     - `DrawCtx` contains all the data for drawing
         - `videos` => list of length 1
         - `paths` => a series of paths
         - `renderFrame` => draws a frame in the canvas
+    - `Recorder`: keeps track of recordings
+    - `Video`: wrapper over a video
 - `src/style.css` a post-css file for tailwind-css. The css file is generated
   to `static`
 
@@ -62,7 +65,6 @@ The following are included in the repository:
 
 - [ ] infrastructure as code (Terraform)
 - [ ] Upload annotation files
-- [ ] Frontend CORS S3 issue
 - [ ] Use SQLite as DB, see:
     - NOTE: json files currently store metadata which is not ideal
     - https://blog.wesleyac.com/posts/consider-sqlite

@@ -474,7 +474,7 @@ class DrawCtx {
   }
 }
 
-class Narrator {
+class App {
   async createRecorder(videoDevice, micDevice) {
     let err = null 
 
@@ -1724,7 +1724,7 @@ async function main() {
     console.error("no canvas provided");
     return;
   }
-  let ctx = new Narrator();
+  let ctx = new App();
   let err = await ctx.setup(canvas);
   if(err) {
     alert(err)
