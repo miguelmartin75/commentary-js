@@ -44,7 +44,7 @@ server:
 ```
 conda create -n commentary_js python=3.11 -y
 conda activate commentary_js
-pip install flask boto3 iopath
+pip install -r requirement.txt
 ```
 
 run the server:
