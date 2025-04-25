@@ -1,0 +1,19 @@
+{
+  "name": "commentary_js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "commentary.js",
+  "scripts": {
+    "build": "postcss src/style.css -o static/style.css",
+    "dev": "npm run build && flask --app backend/main.py --debug run --port 5001",
+    "prod": "npm run build && flask --app backend/main.py run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss-cli": "^10.1.0",
+    "tailwindcss": "^3.3.2"
+  }
+}

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Commentary JS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="static/style.css"></style>
+    <script src="static/jszip.min.js" type="module" defer></script>
+    <script src="commentary.js" type="module" defer></script>
+  </head>
+
+  <body>
+      <div class="flex flex-col min-h-screen max-h-screen">
+        <div class="bg-purple-600 px-8 flex items-center justify-between py-4 shadow-sm text-white">
+            <button class="mx-1 px-4 py-1" id="mainMenuBtn">Commentary JS</button>
+            <div class="flex">
+                <div class="mx-1 px-4 py-1" id="videoNameLabel">No Video Open</div>
+                <button class="mx-1 px-4 py-1 text-sm text-white-600 font-semibold
+                    rounded-full border border-white-600 hover:text-black
+                    hover:bg-black-600 hover:border-black-600 focus:outline-none
+                focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+                id="prevVideoBtn">Previous (p)</button>
+                <button class="mx-1 px-4 py-1 text-sm text-white-600 font-semibold
+                    rounded-full border border-white-600 hover:text-black
+                    hover:bg-black-600 hover:border-black-600 focus:outline-none
+                focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+                id="nextVideoBtn">Next (n)</button>
+            </div>
+            <!-- TODO -->
+            <div class="flex">
+            <button class="mx-1 px-4 py-1 text-sm text-white-600 font-semibold
+                rounded-full border border-white-600 hover:text-black
+                hover:bg-black-600 hover:border-black-600 focus:outline-none
+            focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+            id="shortcutsBtn">Shortcuts (?)</button>
+            <button class="mx-1 px-4 py-1 text-sm text-white-600 font-semibold
+                rounded-full border border-white-600 hover:text-black
+                hover:bg-black-600 hover:border-black-600 focus:outline-none
+            focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+            id="settingsBtn">Settings (ESC)</button>
+            </div>
+        </div>
+        <div id="shortcutsScreen" class="flex h-screen overflow-hidden hidden">
+            <div class="overflow-x-auto w-1/2 m-auto">
+              <table class="border-2 w-full divide-y-2 divide-gray-200 bg-white text-sm">
+                <thead>
+                  <tr class="text-left text-lg">
+                    <th class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                      Action
+                    </th>
+                    <th class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                      Shortcut Key
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Start or Stop Recording
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">r, R or Enter</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Play Video
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Space</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Next Frame
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Right Arrow or .</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Previous Frame
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Left Arrow or ,</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Show Shortcuts
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">? (hold)</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Open Settings
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">Escape (press)</td>
+                  </tr>
+                  <tr class="odd:bg-gray-50">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                        Mute video
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 text-gray-700">m or M</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+        </div>
+
+        <div id="settingsScreen" class="flex h-screen overflow-hidden m-auto max-w-screen w-full">
+            <div class="m-auto flex w-9/12 ">
+                <div class="grow px-6 w-1/2">
+                    <div class="flex w-full">
+                        <div class="w-full m-auto">
+                        <label for="cam" class="block text-gray-700 text-sm font-bold mb-2">Camera</label>
+                        <select name="cam" id="cam" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="_none">No Device</option>
+                        </select>
+                        </div>
+
+                        <div class="w-full m-auto">
+                        <label for="mic" class="block text-gray-700 text-sm font-bold mb-2">Microphone</label>
+                        <select name="mic" id="mic" class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                        </select>
+                        </div>
+                    </div>
+                    <div class="block text-gray-500">Recording video is <b>optional</b>. Select a camera to record video.</div>
+
+                    <div class="flex flex-col">
+                        <video id="settingsPreviewVideo" class="grow"></video>
+                        <div class="grow-0">
+                            <div class="block text-gray-700 text-sm font-bold mb-2">Mic Volume</div>
+                            <input class="w-full" type="range" min="1" max="100" value="0" class="slider" id="micVolumeBar" disabled>
+                            <div class="block text-gray-500">Please <b>check your Microphone volume</b> by looking at the bar move up/down as you speak</div>
+                        </div>
+                    </div>
+                </div>
+                <form class="flex-col grow-0 px-6 w-1/2">
+                    <form class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+                        <div class="shadow appearance-none border p-6">
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+                                    User ID
+                                </label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" type="text" placeholder="User ID">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="expertise">
+                                    Category
+                                </label>
+                                <select name="expertise" id="expertise"
+                                    class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500" disabled>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="batchSelect">
+                                    Batch
+                                </label>
+                                <select name="batchSelect" id="batchSelect" class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                                </select>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="videoSelect">
+                                    Video Selector
+                                </label>
+                                <select name="videoSelect" id="videoSelect" class="block w-full mx-2 p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between">
+                            </div>
+                        </div>
+
+                        <!-- or separator -->
+                        <div class="hidden inline-flex items-center justify-center w-full">
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                            <span class="px-3 font-small text-gray-900  bg-white left-1/2">or</span>
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                        </div>
+
+                        <div class="hidden">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="videoFile">
+                                    Open Video File
+                                </label>
+                                <input class="shadow appearance-none border rounded w-full p-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="videoFile" type="file">
+                            </div>
+                        </div>
+                        <div class="inline-flex items-center justify-center w-full">
+                            <hr class="w-full h-px my-8 bg-gray-200 border-0">
+                        </div>
+                        <div>
+                            <button id="startAnnotatingBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                                Start Annotating
+                            </button>
+                        </div>
+                        <!-- or separator -->
+                        <div class="inline-flex items-center justify-center w-full">
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                            <span class="px-3 font-small text-gray-900  bg-white left-1/2">or</span>
+                            <hr class="w-64 h-px my-8 bg-gray-200 border-0">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="videoFile">
+                                Open Annotation
+                            </label>
+                            <input class="shadow appearance-none border rounded w-full p-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="annotationFile" type="file">
+                        </div>
+                        <div class="m-2">
+                            <button id="openAnnotationBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+                                Open
+                            </button>
+                        </div>
+                    </form>
+                </form>
+            </div>
+        </div>
+
+        <div id="mainScreen" class="flex h-screen overflow-hidden hidden">
+            <main class='flex-grow p-6 overflow-hidden max-h-screen'> 
+
+                <!--<div class="w-full max-w-full h-5/6 grow-0 m-auto">-->
+                <div class="w-full max-w-full max-h-fit grow m-auto h-[80%]">
+                    <canvas id="glcanvas" class="min-h-full"> </canvas>
+                </div>
+                <div class="w-full flex-col content-center grow-0 h-[20%]">
+                    <div class="flex">
+                        <div class="flex">
+                            <button id="prevFrameBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2">Prev Frame</button>
+                            <button id="playBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                        ">Play</button>
+                            <button id="nextFrameBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                        ">Next Frame</button>
+                        </div>
+                        <div class="flex h-1em w-1/2 items-center">
+                            <div class="text-sm px-1">Volume</div>
+                            <div class="text-sm px-1" id="volumeLevel">100%</div>
+                            <input class="w-1/3 h-1/2 text-sm" type="range" min="0" max="100" value="100" id="volumeBar">
+                            <button id="muteBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2">Mute</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex-0 px-4">Time: <span id="timeInfo">0</span> s</div>
+                        <div class="flex-0 px-4">Frame (approx.): <span id="frameInfo">0</span></div>
+                    </div>
+                    <div class="flex my-2">
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect25x" type="radio" value=".25" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect25x" class="ml-2 text-sm font-medium text-gray-900">0.25x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect50x" type="radio" value=".5" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect50x" class="ml-2 text-sm font-medium text-gray-900">0.5x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect75x" type="radio" value=".75" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect75x" class="ml-2 text-sm font-medium text-gray-900">0.75x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input checked id="speedSelect100x" type="radio" value="1" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect100x" class="ml-2 text-sm font-medium text-gray-900">1x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect125x" type="radio" value="1.25" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect125x" class="ml-2 text-sm font-medium text-gray-900">1.25x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect150x" type="radio" value="1.5" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect150x" class="ml-2 text-sm font-medium text-gray-900">1.5x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect175x" type="radio" value="1.75" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect175x" class="ml-2 text-sm font-medium text-gray-900">1.75x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect200x" type="radio" value="2" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect200x" class="ml-2 text-sm font-medium text-gray-900">2x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect300x" type="radio" value="3" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect300x" class="ml-2 text-sm font-medium text-gray-900">3x</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="speedSelect400x" type="radio" value="4" name="speedSelect" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                            <label for="speedSelect400x" class="ml-2 text-sm font-medium text-gray-900">4x</label>
+                        </div>
+                    </div>
+
+
+                    <input class="w-full" type="range" min="1" max="100" value="0" class="slider" id="playBar">
+                </div>
+            </main>
+            <div class="max-h-screen bg-gray-200 shadow-sm p-6 space-y-6 w-1/4 overflow-y-scroll border-4" id="recordSideBar">
+                <div>
+                    <div class="block text-gray-700 text-sm font-bold mb-2" id="taskInfo">
+                        No video loaded
+                    </div>
+                    <div class="flex">
+                        <button id="rejectBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2" hidden>Reject</button>
+                        <button id="submitBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                    ">Finish</button>
+                    </div>
+                    <button id="recordBtn" class="m-1 px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                ">Record</button>
+                    <div>
+                        <button id="clearStrokeBtn" class="px-4 m-1 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-400 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2
+                    ">Clear Stroke</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex flex-col shadow appearance-none border p-6">
+                        <label for="proficiencyScore" class="block text-gray-700 text-sm font-bold mb-2">Proficiency Score</label>
+                        <div class="flex">
+
+                            <select name="proficiencyScore" id="proficiencyScore" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="_none">None</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="text-sm py-2">
+                            Why?
+                        </div>
+                        <textarea id="proficiencyWhyText" type="text" class="p-1 min-h-fit"></textarea>
+                        <!--
+                        <select name="taskNameSelector" id="taskNameSelector" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                        </select>
+                        -->
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <ol id="audioList">
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </body>
+</html>
+
