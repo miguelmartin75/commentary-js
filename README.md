@@ -15,7 +15,9 @@ The tech-stack is simple:
 
 ### data
 
-TODO
+You will need to:
+1. Have S3-compatible storage somewhere, e.g. AWS S3, Digitial Ocean Spaces, etc.
+2. Generate metadata, see [backend/data.py](./backend/data.py)'s `create_sample_data` function to see what is expected.
 
 ### hosting
 

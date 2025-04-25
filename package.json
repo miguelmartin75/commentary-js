@@ -1,8 +1,8 @@
 {
-  "name": "narrator_js",
+  "name": "commentary_js",
   "version": "1.0.0",
   "description": "",
-  "main": "narrator.js",
+  "main": "commentary.js",
   "scripts": {
     "build": "postcss src/style.css -o static/style.css",
     "dev": "npm run build && flask --app backend/main.py --debug run --port 5001",

@@ -12,8 +12,6 @@ from backend.s3 import (
 from backend.constants import (
     ADD_TEST_USERS,
     S3_VIDEO_DIR,
-    # S3_VIDEO_METADATA_PATH,
-    # S3_BATCHES_PATH,
     USERS_KEY,
     VIDEO_METADATA_KEY,
     BATCHES_KEY,
@@ -98,12 +96,18 @@ def create_sample_data():
             "name": "Garlic Noodles - SF Style",
             "task": "Cooking",
             "s3_path": os.path.join(S3_VIDEO_DIR, "wK9OHVxB_Z8.mp4"),
+        },
+        {
+            "name": "Egg and Rice Bowls, Two Ways",
+            "task": "Cooking",
+            "s3_path": os.path.join(S3_VIDEO_DIR, "IF22i8SQVWk.mp4"),
         }
     ]
     # <batch_id>: list[<video_name>]
     batches = {
         "01/01/2025 - 02/01/2025": [
             "Garlic Noodles - SF Style",
+            "Egg and Rice Bowls, Two Ways",
         ]
     }
 
