@@ -3,3 +3,5 @@
 *.pyc
 node_modules/**
 static/style.css
+**.tfstate
+**.terraform*

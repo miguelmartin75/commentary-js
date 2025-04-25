@@ -2,7 +2,7 @@
 
 A port of the
 [epic-kitchens-100-narrator](https://github.com/epic-kitchens/epic-kitchens-100-narrator)
-to JavaScript. Try it [yourself]() with user id "kenji".
+to JavaScript. Try it [yourself](commentaryjs.miguel-martin.com) with user id "kenji".
 
 TODO: screenshot
 

@@ -85,6 +85,7 @@ def load_data():
         videos_by_task=by_task,
     )
 
+
 def create_sample_data():
     # <user-name> -> <task>
     users = {
