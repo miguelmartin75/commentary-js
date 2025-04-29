@@ -47,7 +47,6 @@ The following are included in the repository:
 
 # TODOs
 
-- [ ] infrastructure as code (Terraform)
 - [ ] Upload annotation files
 - [ ] Use SQLite as DB, see:
     - NOTE: json files currently store metadata which is not ideal
@@ -55,4 +54,4 @@ The following are included in the repository:
 	- SQLite replicated on S3, Spaces, GCP, etc: https://litestream.io/
 - [ ] Nice to haves
     - [ ] whisper integration, see https://twitter.com/xenovacom/status/1678180605836533762
-
+- [ ] DNS assignment with terraform (CloudFlare)

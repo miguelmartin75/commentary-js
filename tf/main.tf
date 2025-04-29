@@ -28,6 +28,8 @@ resource "digitalocean_droplet" "commentaryjs" {
       "sudo apt update",
       "sudo apt install -y nginx",
       "sudo rm /etc/nginx/sites-enabled/default",
+      "sudo snap install core; sudo snap refresh core",
+      "sudo snap install --classic certbot",
     ]
   }
 
@@ -36,10 +38,17 @@ resource "digitalocean_droplet" "commentaryjs" {
     destination = "/etc/nginx/sites-enabled/commentaryjs"
   }
 
+  # TODO: https://blog.cloudflare.com/getting-started-with-terraform-and-cloudflare-part-1/
+  provisioner "file" {
+    source      = "certs.sh"
+    destination = "/root/certs.sh"
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "sudo systemctl restart nginx",
       "sudo ufw allow 'Nginx Full'",
+      "sudo ufw delete allow 'Nginx HTTP'",
+      "sudo systemctl restart nginx",
     ]
   }
 

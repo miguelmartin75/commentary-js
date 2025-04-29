@@ -1,6 +1,6 @@
 # Commentary JS
 
-Try it [yourself](commentaryjs.miguel-martin.com) with user id
+Try it [yourself](https://commentaryjs.miguel-martin.com) with user id
 "kenji" (yes this is referencing the [Chef](https://www.youtube.com/@JKenjiLopezAlt)). Use Chrome.
 
 ![screenshot](./docs/screenshot.jpg)
